@@ -1,120 +1,501 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
 import './App.css'
 
+const API_BASE_URL = 'http://localhost:8080'
+
+interface User {
+  id: string
+  nickname: string
+  realName: string
+  phone: string
+  address: string
+  email: string
+  description: string
+  status: string
+  avatarUrl: string
+  firstLogin: boolean
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user')
+    return savedUser ? JSON.parse(savedUser) : null
+  })
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  
+  // Modals state
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    nickname: '',
+    realName: '',
+    phone: '',
+    address: '',
+    description: '',
+  })
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+
+  // Configure Axios global interceptor for 401 errors
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          // Token expired or invalid, log out the user
+          logout()
+        }
+        return Promise.reject(error)
+      }
+    )
+    return () => {
+      axios.interceptors.response.eject(interceptor)
+    }
+  }, [])
+
+  // Check URL callback routing on page load
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const path = window.location.pathname
+      const searchParams = new URLSearchParams(window.location.search)
+      const code = searchParams.get('code')
+
+      if (path.startsWith('/auth/callback/') && code) {
+        setIsLoading(true)
+        setLoginError(null)
+        
+        // Extract provider from URL, e.g. /auth/callback/google -> google
+        const provider = path.split('/')[3]
+
+        try {
+          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/${provider}/callback`, {
+            code: code,
+          })
+
+          const { token: receivedToken, isNewUser, user: receivedUser } = response.data
+          
+          // Save credentials
+          localStorage.setItem('token', receivedToken)
+          localStorage.setItem('user', JSON.stringify(receivedUser))
+          
+          setToken(receivedToken)
+          setUser(receivedUser)
+
+          // Clear code and callback route from URL
+          window.history.replaceState({}, document.title, '/')
+
+          if (isNewUser) {
+            // New user must fill out profile immediately
+            setProfileForm({
+              nickname: receivedUser.nickname || '',
+              realName: receivedUser.realName || '',
+              phone: receivedUser.phone || '',
+              address: receivedUser.address || '',
+              description: receivedUser.description || '',
+            })
+            setShowProfileModal(true)
+          }
+        } catch (err: any) {
+          console.error(err)
+          setLoginError(
+            err.response?.data?.error || 'Authentication callback failed. Please try again.'
+          )
+          window.history.replaceState({}, document.title, '/')
+        } finally {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    handleOAuthCallback()
+  }, [])
+
+  const logout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setToken(null)
+    setUser(null)
+    setShowProfileModal(false)
+  }
+
+  // Trigger login redirect by fetching the OAuth authorization URL
+  const handleLogin = async (provider: string) => {
+    setIsLoading(true)
+    setLoginError(null)
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/v1/auth/${provider}`)
+      const { url } = response.data
+      if (url) {
+        window.location.href = url
+      } else {
+        throw new Error('OAuth URL not found')
+      }
+    } catch (err: any) {
+      console.error(err)
+      setLoginError(err.response?.data?.error || `Failed to start ${provider} login.`)
+      setIsLoading(false)
+    }
+  }
+
+  // Open profile editing modal
+  const openEditProfile = () => {
+    if (user) {
+      setProfileForm({
+        nickname: user.nickname || '',
+        realName: user.realName || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        description: user.description || '',
+      })
+      setProfileError(null)
+      setShowProfileModal(true)
+    }
+  }
+
+  // Save profile changes
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const trimmedNickname = profileForm.nickname.trim()
+    if (!trimmedNickname) {
+      setProfileError('Nickname is required')
+      return
+    }
+
+    setIsSavingProfile(true)
+    setProfileError(null)
+
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/api/v1/users/me`,
+        {
+          nickname: trimmedNickname,
+          realName: profileForm.realName,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          description: profileForm.description,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      const updatedUser = response.data
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      setShowProfileModal(false)
+    } catch (err: any) {
+      console.error(err)
+      setProfileError(err.response?.data?.error || 'Failed to save profile.')
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  // Determine if we need to show the forced login overlay
+  // Forced if: no token exists, or loading/callback is not active but there is no user object
+  const showForcedLogin = !token || !user
+
+  if (isLoading && !token) {
+    return (
+      <div className="fullscreen-loader">
+        <div className="spinner" style={{ width: '40px', height: '40px', color: 'var(--accent-purple)' }}></div>
+        <p>連線第三方登入驗證中，請稍候...</p>
+      </div>
+    )
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
+      {/* Top Navbar */}
+      <header className="app-header">
+        <div className="logo-container">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#logoGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <defs>
+              <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="var(--accent-blue)" />
+                <stop offset="100%" stopColor="var(--accent-purple)" />
+              </linearGradient>
+            </defs>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <span className="logo-text">jjHomeProMgt</span>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {user && (
+          <div className="user-nav-profile">
+            {user.avatarUrl ? (
+              <img className="avatar" src={user.avatarUrl} alt={user.nickname} />
+            ) : (
+              <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+              </div>
+            )}
+            <span className="nav-nickname">{user.nickname}</span>
+            <button className="btn btn-outline" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
+              登出
+            </button>
+          </div>
+        )}
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      {/* Main Content */}
+      <main style={{ flex: 1 }}>
+        {user && (
+          <div className="dashboard-container">
+            {user.firstLogin && (
+              <div className="first-login-banner">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <h4 style={{ fontWeight: 600 }}>請完成首次登入設定</h4>
+                  <p style={{ color: 'rgba(59, 130, 246, 0.85)', fontSize: '0.9rem' }}>
+                    這是您第一次登入，必須填寫並確認您的個人暱稱以解鎖完整功能。
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={openEditProfile} style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.875rem' }}>
+                  立即設定
+                </button>
+              </div>
+            )}
+
+            <div className="glass-panel hero-card">
+              <div className="profile-header-card">
+                {user.avatarUrl ? (
+                  <img className="avatar-large" src={user.avatarUrl} alt={user.nickname} />
+                ) : (
+                  <div className="avatar-large" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold', background: 'var(--bg-secondary)', color: 'var(--accent-purple)' }}>
+                    {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                <div>
+                  <h1 style={{ marginBottom: '4px' }}>{user.nickname}</h1>
+                  <p style={{ fontSize: '1rem' }}>{user.email || '尚未提供電子信箱'}</p>
+                </div>
+                <button className="btn btn-primary" onClick={openEditProfile} style={{ marginLeft: 'auto' }}>
+                  編輯個人檔案
+                </button>
+              </div>
+
+              <div className="ticks" style={{ margin: '20px 0', height: '1px', background: 'var(--card-border)' }}></div>
+
+              <h2>個人詳細資料</h2>
+              <div className="profile-grid">
+                <div className="profile-item">
+                  <span className="profile-label">真實姓名</span>
+                  <span className={user.realName ? "profile-value" : "profile-value-empty"}>
+                    {user.realName || '未填寫'}
+                  </span>
+                </div>
+                <div className="profile-item">
+                  <span className="profile-label">聯絡電話</span>
+                  <span className={user.phone ? "profile-value" : "profile-value-empty"}>
+                    {user.phone || '未填寫'}
+                  </span>
+                </div>
+                <div className="profile-item">
+                  <span className="profile-label">通訊地址</span>
+                  <span className={user.address ? "profile-value" : "profile-value-empty"}>
+                    {user.address || '未填寫'}
+                  </span>
+                </div>
+                <div className="profile-item">
+                  <span className="profile-label">帳號狀態</span>
+                  <span className="profile-value" style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
+                    {user.status || 'ACTIVE'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="profile-item" style={{ marginTop: '20px' }}>
+                <span className="profile-label">個人簡介</span>
+                <span className={user.description ? "profile-value" : "profile-value-empty"}>
+                  {user.description || '這個人很懶，什麼都沒寫。'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* 1. Forced Login Modal */}
+      {showForcedLogin && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content">
+            <div style={{ textAlign: 'center' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(var(--neon-purple))' }}>
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <polyline points="17 11 19 13 23 9" />
+              </svg>
+            </div>
+            <h2 className="modal-title">歡迎登入 jjHomeProMgt</h2>
+            <p className="modal-subtitle">請選擇您喜好的社群帳號，立即開始您的管理之旅。</p>
+
+            {loginError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '12px', borderRadius: '8px', fontSize: '0.9rem', textAlign: 'center' }}>
+                {loginError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+              {/* LINE Login */}
+              <button 
+                className="btn oauth-btn oauth-btn-line" 
+                onClick={() => handleLogin('line')}
+                disabled={isLoading}
+              >
+                <svg className="oauth-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10.1 10.1.4.1.9.3.9.7v2.3c0 .6-.3.8-.1.9.1.1.7-.2 3.5-2.1 4.1-1.3 9.6-4.9 9.6-11.9zM7.5 13.9H5.7V6.7h1.8v7.2zm4.8 0h-3.6V6.7h1.8V12h1.8v1.9zm2.7 0h-1.8V6.7h1.8v7.2zm5.7 0H19L17.2 9.5v4.4h-1.8V6.7h1.8l1.8 4.4V6.7h1.8v7.2z"/>
+                </svg>
+                使用 LINE 帳號登入
+              </button>
+
+              {/* Google Login */}
+              <button 
+                className="btn oauth-btn oauth-btn-google" 
+                onClick={() => handleLogin('google')}
+                disabled={isLoading}
+              >
+                <svg className="oauth-icon" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                使用 Google 帳號登入
+              </button>
+
+              {/* GitHub Login */}
+              <button 
+                className="btn oauth-btn oauth-btn-github" 
+                onClick={() => handleLogin('github')}
+                disabled={isLoading}
+              >
+                <svg className="oauth-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                使用 GitHub 帳號登入
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Edit Profile Modal */}
+      {showProfileModal && (
+        <div className="modal-overlay">
+          <form className="glass-panel modal-content" onSubmit={handleSaveProfile} style={{ gap: '20px' }}>
+            <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" strokeWidth="2.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              完成個人檔案設定
+            </h2>
+            
+            {profileError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '12px', borderRadius: '8px', fontSize: '0.9rem', textAlign: 'center' }}>
+                {profileError}
+              </div>
+            )}
+
+            {/* Nickname (Required) */}
+            <div className="form-group">
+              <label className="form-label">
+                使用者暱稱 (Nickname)<span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="請輸入暱稱（不可重複）"
+                value={profileForm.nickname}
+                onChange={(e) => setProfileForm({ ...profileForm, nickname: e.target.value })}
+                required
+              />
+            </div>
+
+            {/* Real Name */}
+            <div className="form-group">
+              <label className="form-label">真實姓名 (Real Name)</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="請輸入您的真實姓名"
+                value={profileForm.realName}
+                onChange={(e) => setProfileForm({ ...profileForm, realName: e.target.value })}
+              />
+            </div>
+
+            {/* Phone */}
+            <div className="form-group">
+              <label className="form-label">聯絡電話 (Phone)</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="請輸入您的電話號碼"
+                value={profileForm.phone}
+                onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+              />
+            </div>
+
+            {/* Address */}
+            <div className="form-group">
+              <label className="form-label">通訊地址 (Address)</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="請輸入您的通訊地址"
+                value={profileForm.address}
+                onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="form-group">
+              <label className="form-label">個人簡介 (Description)</label>
+              <textarea
+                className="form-control"
+                placeholder="介紹一下你自己吧..."
+                value={profileForm.description}
+                onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              {/* Only show cancel button if they are NOT in forced first-login completion */}
+              {user && !user.firstLogin && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowProfileModal(false)}
+                  disabled={isSavingProfile}
+                >
+                  取消
+                </button>
+              )}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isSavingProfile}
+                style={{ minWidth: '100px' }}
+              >
+                {isSavingProfile ? (
+                  <div className="spinner"></div>
+                ) : (
+                  '儲存設定'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   )
 }
