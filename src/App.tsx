@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
@@ -26,6 +26,7 @@ function App() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
+  const oAuthCalled = useRef(false)
   
   // Modals state
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -64,6 +65,9 @@ function App() {
       const code = searchParams.get('code')
 
       if (path.startsWith('/auth/callback/') && code) {
+        if (oAuthCalled.current) return
+        oAuthCalled.current = true
+
         setIsLoading(true)
         setLoginError(null)
         
