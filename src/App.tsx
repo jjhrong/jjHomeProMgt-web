@@ -17,48 +17,88 @@ interface User {
   firstLogin: boolean
 }
 
-interface CRUDItem {
-  id: string;
-  name: string;
-  value: string;
-  description: string;
-  status: string;
-}
+const SCHEMAS: { [key: string]: { fields: { key: string; label: string; type: string; required?: boolean; selectOptions?: string[] }[] } } = {
+  configs: {
+    fields: [
+      { key: 'kind', label: '類別 (Kind)', type: 'text', required: true },
+      { key: 'name', label: '屬性名稱 (Name)', type: 'text', required: true },
+      { key: 'orderSn', label: '排序編號 (Order SN)', type: 'number', required: true },
+      { key: 'value', label: '設定值 (Value)', type: 'text', required: true },
+      { key: 'description', label: '功能描述 (Description)', type: 'text', required: true },
+      { key: 'status', label: '狀態 (Status)', type: 'select', selectOptions: ['ACTIVE', 'INACTIVE'] },
+    ]
+  },
+  functions: {
+    fields: [
+      { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true },
+      { key: 'pId', label: '父功能識別碼 (Parent ID)', type: 'text' },
+      { key: 'name', label: '功能名稱 (Name - 英文)', type: 'text', required: true },
+      { key: 'orderSn', label: '排序編號 (Order SN)', type: 'number', required: true },
+      { key: 'type', label: '功能類型 (Type)', type: 'select', selectOptions: ['HOME', 'PAGE', 'SETT'] },
+      { key: 'description', label: '中文描述 (Description)', type: 'text', required: true },
+      { key: 'status', label: '狀態 (Status)', type: 'select', selectOptions: ['ACTIVE', 'INACTIVE'] },
+    ]
+  }
+};
+
+const INITIAL_DATA: { [key: string]: any[] } = {
+  configs: [
+    { kind: 'SYS', name: 'NAME', orderSn: 0, value: 'jjHomeProMgt', description: '系統顯示名稱', status: 'ACTIVE' },
+    { kind: 'SYS', name: 'VERSION', orderSn: 1, value: '1.0.0', description: '系統版本號', status: 'ACTIVE' },
+  ],
+  functions: [
+    { id: '00000000-0000-0000-0000-00000000', pId: '', name: 'Home', orderSn: 0, type: 'HOME', description: '首頁', status: 'ACTIVE' },
+    { id: '00000000-0000-0000-0000-00000001', pId: '', name: 'User', orderSn: 0, type: 'PAGE', description: '使用者', status: 'ACTIVE' },
+    { id: '00000000-0000-0000-0099-00000000', pId: '', name: 'Setting', orderSn: 0, type: 'PAGE', description: '設定', status: 'ACTIVE' },
+    { id: '00000000-0000-0000-0099-00000001', pId: '00000000-0000-0000-0099-00000000', name: 'Setting_configs', orderSn: 0, type: 'SETT', description: '參數設定', status: 'ACTIVE' },
+  ]
+};
 
 const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
-  const [items, setItems] = useState<CRUDItem[]>([
-    { id: '1', name: 'sys_name', value: 'jjHomeProMgt', description: '系統顯示名稱', status: 'ACTIVE' },
-    { id: '2', name: 'logo_color', value: 'purple', description: '系統主題色彩', status: 'ACTIVE' },
-    { id: '3', name: 'page_limit', value: '10', description: '分頁筆數上限', status: 'ACTIVE' },
-  ]);
+  const typeKey = objectName.toLowerCase() === 'functions' ? 'functions' : 'configs';
+  const schema = SCHEMAS[typeKey] || SCHEMAS.configs;
+  
+  const [items, setItems] = useState<any[]>([]);
 
-  const [form, setForm] = useState({ id: '', name: '', value: '', description: '', status: 'ACTIVE' });
+  useEffect(() => {
+    setItems(INITIAL_DATA[typeKey] || INITIAL_DATA.configs);
+  }, [typeKey]);
+
+  const [form, setForm] = useState<any>({});
   const [isEditing, setIsEditing] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
 
   const handleOpenAdd = () => {
-    setForm({ id: '', name: '', value: '', description: '', status: 'ACTIVE' });
+    const defaultForm: any = {};
+    schema.fields.forEach(f => {
+      defaultForm[f.key] = f.type === 'number' ? 0 : f.type === 'select' ? f.selectOptions?.[0] : '';
+    });
+    setForm(defaultForm);
     setIsEditing(false);
+    setEditingIndex(null);
     setShowFormModal(true);
   };
 
-  const handleOpenEdit = (item: CRUDItem) => {
+  const handleOpenEdit = (item: any, index: number) => {
     setForm({ ...item });
     setIsEditing(true);
+    setEditingIndex(index);
     setShowFormModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
+  const handleDelete = (index: number) => {
+    setItems(items.filter((_, idx) => idx !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditing) {
-      setItems(items.map((item) => (item.id === form.id ? form : item)));
+    if (isEditing && editingIndex !== null) {
+      const updated = [...items];
+      updated[editingIndex] = form;
+      setItems(updated);
     } else {
-      const newId = (Math.max(...items.map(i => parseInt(i.id) || 0)) + 1).toString();
-      setItems([...items, { ...form, id: newId }]);
+      setItems([...items, form]);
     }
     setShowFormModal(false);
   };
@@ -66,7 +106,7 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
   return (
     <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px solid var(--card-border)', padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h4 style={{ fontSize: '1.1rem', color: 'var(--accent-blue)' }}>{objectName} 管理清單</h4>
+        <h4 style={{ fontSize: '1.1rem', color: 'var(--accent-blue)', textTransform: 'capitalize' }}>{objectName} 維護清單</h4>
         <button className="btn btn-primary" onClick={handleOpenAdd} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
           + 新增資料
         </button>
@@ -76,42 +116,42 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>
-              <th style={{ padding: '12px' }}>ID</th>
-              <th style={{ padding: '12px' }}>屬性名稱 (Key)</th>
-              <th style={{ padding: '12px' }}>值 (Value)</th>
-              <th style={{ padding: '12px' }}>描述</th>
-              <th style={{ padding: '12px' }}>狀態</th>
+              {schema.fields.map(f => (
+                <th key={f.key} style={{ padding: '12px' }}>{f.label.split(' ')[0]}</th>
+              ))}
               <th style={{ padding: '12px', textAlign: 'right' }}>操作</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{item.id}</td>
-                <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</td>
-                <td style={{ padding: '12px', color: 'var(--accent-purple)' }}>{item.value}</td>
-                <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{item.description}</td>
-                <td style={{ padding: '12px' }}>
-                  <span style={{ 
-                    padding: '2px 8px', 
-                    borderRadius: '4px', 
-                    fontSize: '0.75rem', 
-                    background: item.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                    color: item.status === 'ACTIVE' ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontWeight: 600
-                  }}>
-                    {item.status}
-                  </span>
-                </td>
-                <td style={{ padding: '12px', textAlign: 'right' }}>
+            {items.map((item, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                {schema.fields.map(f => (
+                  <td key={f.key} style={{ padding: '12px', color: f.key === 'status' ? undefined : 'var(--text-primary)' }}>
+                    {f.key === 'status' ? (
+                      <span style={{ 
+                        padding: '2px 8px', 
+                        borderRadius: '4px', 
+                        fontSize: '0.75rem', 
+                        background: item[f.key] === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                        color: item[f.key] === 'ACTIVE' ? 'var(--accent-green)' : 'var(--accent-red)',
+                        fontWeight: 600
+                      }}>
+                        {item[f.key]}
+                      </span>
+                    ) : (
+                      item[f.key] !== undefined && item[f.key] !== null ? String(item[f.key]) : '-'
+                    )}
+                  </td>
+                ))}
+                <td style={{ padding: '12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button 
-                    onClick={() => handleOpenEdit(item)}
+                    onClick={() => handleOpenEdit(item, idx)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginRight: '12px', fontSize: '0.85rem' }}
                   >
                     編輯
                   </button>
                   <button 
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => handleDelete(idx)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.85rem' }}
                   >
                     刪除
@@ -125,62 +165,44 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
 
       {showFormModal && (
         <div className="modal-overlay" style={{ zIndex: 1200 }}>
-          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '90%', maxWidth: '400px', padding: '24px', gap: '16px' }}>
+          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '95%', maxWidth: '450px', padding: '24px', gap: '16px' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '8px', textAlign: 'center' }}>
-              {isEditing ? `編輯 ${objectName}` : `新增 ${objectName}`}
+              {isEditing ? `編輯 ${objectName.slice(0, -1)}` : `新增 ${objectName.slice(0, -1)}`}
             </h3>
             
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>屬性名稱 (Key)</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={form.name} 
-                onChange={(e) => setForm({ ...form, name: e.target.value })} 
-                required 
-              />
-            </div>
-
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>值 (Value)</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={form.value} 
-                onChange={(e) => setForm({ ...form, value: e.target.value })} 
-                required 
-              />
-            </div>
-
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>描述</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={form.description} 
-                onChange={(e) => setForm({ ...form, description: e.target.value })} 
-                required 
-              />
-            </div>
-
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>狀態</label>
-              <select 
-                className="form-control" 
-                value={form.status} 
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px' }}
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+              {schema.fields.map(f => (
+                <div key={f.key} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.label}</label>
+                  {f.type === 'select' ? (
+                    <select 
+                      className="form-control" 
+                      value={form[f.key] || ''} 
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                      style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px' }}
+                    >
+                      {f.selectOptions?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input 
+                      type={f.type} 
+                      className="form-control" 
+                      value={form[f.key] === undefined ? '' : form[f.key]} 
+                      onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} 
+                      required={f.required} 
+                    />
+                  )}
+                </div>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button type="button" className="btn btn-outline" onClick={() => setShowFormModal(false)}>
                 取消
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" style={{ minWidth: '80px' }}>
                 確定
               </button>
             </div>
