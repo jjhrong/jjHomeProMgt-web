@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
-const API_BASE_URL = 'http://localhost:8080'
+const API_BASE_URL = 'http://localhost:8081'
 
 interface User {
   id: string
