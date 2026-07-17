@@ -805,7 +805,7 @@ function App() {
       )}
 
       {/* 3. General Function Modal (for type PAGE) */}
-      {currentFunction && currentFunction.type === 'PAGE' && (
+      {currentFunction && (currentFunction.type === 'PAGE' || currentFunction.type === 'SETT') && (
         <div className="modal-overlay">
           <div className="glass-panel modal-content" style={{ width: '80%', maxWidth: '800px', padding: '32px', position: 'relative' }}>
             {/* Close button (X) in top right */}
