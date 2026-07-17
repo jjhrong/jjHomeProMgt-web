@@ -460,3 +460,9 @@ textarea.form-control {
   width: 100vw;
   background-color: var(--bg-primary);
 }
+
+/* Custom Tooltip Hover Trigger */
+.sub-func-btn-container:hover .custom-tooltip {
+  opacity: 1 !important;
+  transform: translate(-50%, -6px) !important;
+}

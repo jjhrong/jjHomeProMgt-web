@@ -94,8 +94,10 @@ function App() {
           setToken(receivedToken)
           setUser(receivedUser)
 
-          // Clear code and callback route from URL
-          window.history.replaceState({}, document.title, '/')
+          // Clear code and callback route from URL, redirect to intended path
+          const redirectTo = sessionStorage.getItem('redirect_to') || '/'
+          sessionStorage.removeItem('redirect_to')
+          window.history.replaceState({}, document.title, redirectTo)
 
           if (isNewUser) {
             // New user must fill out profile immediately
@@ -138,64 +140,70 @@ function App() {
     fetchSystemName()
   }, [])
 
-  // Dynamic function routing verification
-  useEffect(() => {
-    const validateRoute = async () => {
-      // Clear route errors if not logged in
-      if (!token || !user) {
-        setIs404(false)
-        setCurrentFunction(null)
-        return
-      }
-
-      const path = window.location.pathname
-      // Skip OAuth callback path
-      if (path.startsWith('/auth/callback')) {
-        return
-      }
-
-      let functionName = path.slice(1)
-      if (functionName === '') {
-        setIs404(false)
-        setCurrentFunction({ name: 'Home', description: '首頁', type: 'HOME' })
-        setIsValidatingRoute(false)
-        return
-      }
-
-      // If nested path, it's an invalid function name
-      if (functionName.includes('/')) {
-        setIs404(true)
-        setCurrentFunction(null)
-        return
-      }
-
-      setIsValidatingRoute(true)
+  // Dynamic function routing verification helper
+  const validateRoute = async (tokenVal = token, userVal = user) => {
+    // Clear route errors if not logged in
+    if (!tokenVal || !userVal) {
       setIs404(false)
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        const funcData = response.data
-        setCurrentFunction(funcData)
-
-        if (funcData.name === 'User') {
-          setShowViewProfileModal(true)
-        } else {
-          setShowViewProfileModal(false)
-        }
-      } catch (err) {
-        console.error('Route validation failed:', err)
-        setIs404(true)
-        setCurrentFunction(null)
-      } finally {
-        setIsValidatingRoute(false)
-      }
+      setCurrentFunction(null)
+      return
     }
 
+    const path = window.location.pathname
+    // Skip OAuth callback path
+    if (path.startsWith('/auth/callback')) {
+      return
+    }
+
+    let functionName = path.slice(1)
+    if (functionName === '') {
+      setIs404(false)
+      setCurrentFunction({ name: 'Home', description: '首頁', type: 'HOME', subFunctions: [] })
+      setIsValidatingRoute(false)
+      return
+    }
+
+    // If nested path, it's an invalid function name
+    if (functionName.includes('/')) {
+      setIs404(true)
+      setCurrentFunction(null)
+      return
+    }
+
+    setIsValidatingRoute(true)
+    setIs404(false)
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
+        headers: {
+          Authorization: `Bearer ${tokenVal}`
+        }
+      })
+      const funcData = response.data
+      setCurrentFunction(funcData)
+
+      if (funcData.name === 'User') {
+        setShowViewProfileModal(true)
+      } else {
+        setShowViewProfileModal(false)
+      }
+    } catch (err) {
+      console.error('Route validation failed:', err)
+      setIs404(true)
+      setCurrentFunction(null)
+    } finally {
+      setIsValidatingRoute(false)
+    }
+  }
+
+  // Dynamic function routing verification
+  useEffect(() => {
     validateRoute()
   }, [token, user])
+
+  const navigateTo = (path: string) => {
+    window.history.pushState({}, document.title, path)
+    validateRoute(token, user)
+  }
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -209,6 +217,13 @@ function App() {
   const handleLogin = async (provider: string) => {
     setIsLoading(true)
     setLoginError(null)
+
+    // Save intended destination path for redirection after callback
+    const currentPath = window.location.pathname
+    if (currentPath && !currentPath.startsWith('/auth/callback')) {
+      sessionStorage.setItem('redirect_to', currentPath)
+    }
+
     try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/auth/${provider}`)
       const { url } = response.data
@@ -339,6 +354,13 @@ function App() {
               )}
               <span className="nav-nickname">{user.nickname}</span>
             </div>
+             <button 
+              className="btn btn-outline" 
+              onClick={() => navigateTo('/Setting')} 
+              style={{ padding: '8px 16px', fontSize: '0.875rem', marginRight: '8px' }}
+            >
+              設定
+            </button>
             <button className="btn btn-outline" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
               登出
             </button>
@@ -391,24 +413,8 @@ function App() {
               </div>
             ) : (
               <>
-                {currentFunction && currentFunction.name !== 'Home' && currentFunction.name !== 'User' && (
-                  <div className="glass-panel" style={{ padding: '24px', margin: '20px 0', border: '1px solid var(--card-border)' }}>
-                    <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                        <polyline points="10 9 9 9 8 9" />
-                      </svg>
-                      {currentFunction.description}
-                    </h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {currentFunction.name} | 類型: {currentFunction.type}</p>
-                  </div>
-                )}
-
-                {/* Page content currently kept blank for future function buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
+                {/* 第一區塊 (First Block): Page content currently kept blank for future function buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
@@ -416,6 +422,102 @@ function App() {
                   </svg>
                   <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
                 </div>
+
+                {currentFunction && (
+                  <>
+                    {/* 第二區塊 (Second Block): 本身功能 */}
+                    <div style={{ margin: '32px 0' }}>
+                      <h2 style={{ fontSize: '1.25rem', marginBottom: '12px', color: 'var(--text-primary)' }}>第二區塊：本身功能</h2>
+                      <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--card-border)' }}>
+                        <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                          </svg>
+                          {currentFunction.description}
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {currentFunction.name} | 類型: {currentFunction.type}</p>
+                      </div>
+                    </div>
+
+                    {/* 第三區塊 (Third Block): 下轄子功能 */}
+                    <div style={{ margin: '32px 0' }}>
+                      <h2 style={{ fontSize: '1.25rem', marginBottom: '12px', color: 'var(--text-primary)' }}>第三區塊：下轄子功能</h2>
+                      <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--card-border)' }}>
+                        {currentFunction.subFunctions && currentFunction.subFunctions.length > 0 ? (
+                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            {currentFunction.subFunctions.map((sub: any) => (
+                              <div 
+                                key={sub.id}
+                                className="sub-func-btn-container" 
+                                style={{ position: 'relative', display: 'inline-block' }}
+                              >
+                                <button
+                                  className="btn btn-outline"
+                                  onClick={() => navigateTo(`/${sub.name}`)}
+                                  style={{
+                                    width: '8vw',
+                                    height: '8vw',
+                                    minWidth: '80px',
+                                    minHeight: '80px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '12px',
+                                    padding: '8px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    wordBreak: 'break-all',
+                                    transition: 'all 0.2s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--accent-purple)'
+                                    e.currentTarget.style.boxShadow = 'var(--neon-purple)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = ''
+                                    e.currentTarget.style.boxShadow = ''
+                                  }}
+                                >
+                                  {sub.name}
+                                </button>
+                                <div 
+                                  className="custom-tooltip"
+                                  style={{
+                                    position: 'absolute',
+                                    bottom: '105%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    background: 'rgba(15, 23, 42, 0.95)',
+                                    border: '1px solid var(--accent-purple)',
+                                    color: '#fff',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    whiteSpace: 'nowrap',
+                                    pointerEvents: 'none',
+                                    opacity: 0,
+                                    transition: 'opacity 0.2s, transform 0.2s',
+                                    boxShadow: 'var(--neon-purple)',
+                                    zIndex: 10,
+                                  }}
+                                >
+                                  {sub.description}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>無下轄子功能</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
