@@ -882,7 +882,7 @@ function App() {
             {/* Close button (X) in top right */}
             <button 
               className="modal-close-btn" 
-              onClick={() => navigateTo('/')}
+              onClick={() => navigateTo(currentFunction.parentName ? `/${currentFunction.parentName}` : '/')}
               style={{
                 position: 'absolute',
                 top: '20px',
