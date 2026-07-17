@@ -39,7 +39,12 @@ function App() {
   })
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [showViewProfileModal, setShowViewProfileModal] = useState(false)
+  const [homeFunction, setHomeFunction] = useState<any>({
+    name: 'Home',
+    description: '首頁',
+    type: 'HOME',
+    subFunctions: []
+  })
   
   const [appName, setAppName] = useState('jjHomeProMgt')
   const [is404, setIs404] = useState(false)
@@ -180,12 +185,6 @@ function App() {
       })
       const funcData = response.data
       setCurrentFunction(funcData)
-
-      if (funcData.name === 'User') {
-        setShowViewProfileModal(true)
-      } else {
-        setShowViewProfileModal(false)
-      }
     } catch (err) {
       console.error('Route validation failed:', err)
       setIs404(true)
@@ -199,6 +198,175 @@ function App() {
   useEffect(() => {
     validateRoute()
   }, [token, user])
+
+  // Fetch home function details once logged in
+  useEffect(() => {
+    const fetchHomeFunction = async () => {
+      if (!token || !user) return
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        setHomeFunction(response.data)
+      } catch (err) {
+        console.error('Failed to fetch home function:', err)
+      }
+    }
+    fetchHomeFunction()
+  }, [token, user])
+
+  // General layout function block renderer
+  const renderFunctionBlocks = (func: any) => {
+    if (!func) return null
+
+    const showFirst = true
+    const showSecond = func.name === 'Home' || func.name === 'User'
+    const showThird = func.subFunctions && func.subFunctions.length > 0
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* First Block: Function name and other details */}
+        {showFirst && (
+          <div style={{ padding: '8px 0' }}>
+            <h3 style={{ fontSize: '1.4rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              {func.description}
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {func.name} | 類型: {func.type}</p>
+          </div>
+        )}
+
+        {/* Separator between First and Second, or First and Third */}
+        {showFirst && (showSecond || showThird) && (
+          <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '0' }} />
+        )}
+
+        {/* Second Block: Function content */}
+        {showSecond && (
+          <div style={{ padding: '8px 0' }}>
+            {func.name === 'User' && user && (
+              <div className="profile-header-card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+                {user.avatarUrl ? (
+                  <img className="avatar" src={user.avatarUrl} alt={user.nickname} style={{ width: '80px', height: '80px', borderRadius: '50%' }} />
+                ) : (
+                  <div className="avatar" style={{ width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '2rem', background: 'var(--accent-purple)' }}>
+                    {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                <div>
+                  <h4 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '4px' }}>{user.nickname}</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>真實姓名: {user.realName || '未填寫'}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>聯絡電話: {user.phone || '未填寫'}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>聯絡地址: {user.address || '未填寫'}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>介紹: {user.description || '這個人很懶，什麼都沒寫。'}</p>
+                </div>
+                <button 
+                  type="button"
+                  className="btn btn-outline" 
+                  onClick={openEditProfile}
+                  style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.875rem' }}
+                >
+                  編輯資訊
+                </button>
+              </div>
+            )}
+            {func.name === 'Home' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '12px 0' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Separator between Second and Third */}
+        {showSecond && showThird && (
+          <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '0' }} />
+        )}
+
+        {/* Third Block: Sub-functions */}
+        {showThird && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              {func.subFunctions.map((sub: any) => (
+                <div 
+                  key={sub.id}
+                  className="sub-func-btn-container" 
+                  style={{ position: 'relative', display: 'inline-block' }}
+                >
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => navigateTo(`/${sub.name}`)}
+                    style={{
+                      width: '8vw',
+                      height: '8vw',
+                      minWidth: '80px',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '12px',
+                      padding: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      wordBreak: 'break-all',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent-purple)'
+                      e.currentTarget.style.boxShadow = 'var(--neon-purple)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = ''
+                      e.currentTarget.style.boxShadow = ''
+                    }}
+                  >
+                    {sub.name}
+                  </button>
+                  <div 
+                    className="custom-tooltip"
+                    style={{
+                      position: 'absolute',
+                      bottom: '105%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      border: '1px solid var(--accent-purple)',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      opacity: 0,
+                      transition: 'opacity 0.2s, transform 0.2s',
+                      boxShadow: 'var(--neon-purple)',
+                      zIndex: 10,
+                    }}
+                  >
+                    {sub.description}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, document.title, path)
@@ -334,7 +502,7 @@ function App() {
           <div className="user-nav-profile">
             <div 
               className="user-nav-trigger" 
-              onClick={() => setShowViewProfileModal(true)}
+              onClick={() => navigateTo('/User')}
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -412,113 +580,7 @@ function App() {
                 <p style={{ fontSize: '0.95rem' }}>載入並驗證系統功能選單中...</p>
               </div>
             ) : (
-              <>
-                {/* 第一區塊 (First Block): Page content currently kept blank for future function buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
-                </div>
-
-                {currentFunction && (
-                  <>
-                    {/* 第二區塊 (Second Block): 本身功能 */}
-                    <div style={{ margin: '32px 0' }}>
-                      <h2 style={{ fontSize: '1.25rem', marginBottom: '12px', color: 'var(--text-primary)' }}>第二區塊：本身功能</h2>
-                      <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--card-border)' }}>
-                        <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="16" y1="13" x2="8" y2="13" />
-                            <line x1="16" y1="17" x2="8" y2="17" />
-                            <polyline points="10 9 9 9 8 9" />
-                          </svg>
-                          {currentFunction.description}
-                        </h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {currentFunction.name} | 類型: {currentFunction.type}</p>
-                      </div>
-                    </div>
-
-                    {/* 第三區塊 (Third Block): 下轄子功能 */}
-                    <div style={{ margin: '32px 0' }}>
-                      <h2 style={{ fontSize: '1.25rem', marginBottom: '12px', color: 'var(--text-primary)' }}>第三區塊：下轄子功能</h2>
-                      <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--card-border)' }}>
-                        {currentFunction.subFunctions && currentFunction.subFunctions.length > 0 ? (
-                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                            {currentFunction.subFunctions.map((sub: any) => (
-                              <div 
-                                key={sub.id}
-                                className="sub-func-btn-container" 
-                                style={{ position: 'relative', display: 'inline-block' }}
-                              >
-                                <button
-                                  className="btn btn-outline"
-                                  onClick={() => navigateTo(`/${sub.name}`)}
-                                  style={{
-                                    width: '8vw',
-                                    height: '8vw',
-                                    minWidth: '80px',
-                                    minHeight: '80px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderRadius: '12px',
-                                    padding: '8px',
-                                    fontSize: '0.85rem',
-                                    fontWeight: '600',
-                                    wordBreak: 'break-all',
-                                    transition: 'all 0.2s',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--accent-purple)'
-                                    e.currentTarget.style.boxShadow = 'var(--neon-purple)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = ''
-                                    e.currentTarget.style.boxShadow = ''
-                                  }}
-                                >
-                                  {sub.name}
-                                </button>
-                                <div 
-                                  className="custom-tooltip"
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: '105%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    background: 'rgba(15, 23, 42, 0.95)',
-                                    border: '1px solid var(--accent-purple)',
-                                    color: '#fff',
-                                    padding: '8px 12px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    whiteSpace: 'nowrap',
-                                    pointerEvents: 'none',
-                                    opacity: 0,
-                                    transition: 'opacity 0.2s, transform 0.2s',
-                                    boxShadow: 'var(--neon-purple)',
-                                    zIndex: 10,
-                                  }}
-                                >
-                                  {sub.description}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>無下轄子功能</p>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
+              renderFunctionBlocks(homeFunction)
             )}
           </div>
         )}
@@ -697,18 +759,18 @@ function App() {
         </div>
       )}
 
-      {/* 3. View Profile Modal */}
-      {showViewProfileModal && user && (
-        <div className="modal-overlay" onClick={() => setShowViewProfileModal(false)}>
-          <div className="glass-panel modal-content" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '600px', width: '90%' }}>
+      {/* 3. General Function Modal (for type PAGE) */}
+      {currentFunction && currentFunction.type === 'PAGE' && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ width: '80%', maxWidth: '800px', padding: '32px', position: 'relative' }}>
             {/* Close button (X) in top right */}
             <button 
               className="modal-close-btn" 
-              onClick={() => setShowViewProfileModal(false)}
+              onClick={() => navigateTo('/')}
               style={{
                 position: 'absolute',
-                top: '16px',
-                right: '16px',
+                top: '20px',
+                right: '20px',
                 background: 'none',
                 border: 'none',
                 color: 'var(--text-secondary)',
@@ -724,66 +786,8 @@ function App() {
               &times;
             </button>
 
-            <div className="profile-header-card" style={{ marginTop: '10px' }}>
-              {user.avatarUrl ? (
-                <img className="avatar-large" src={user.avatarUrl} alt={user.nickname} />
-              ) : (
-                <div className="avatar-large" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold', background: 'var(--bg-secondary)', color: 'var(--accent-purple)' }}>
-                  {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
-                </div>
-              )}
-              <div>
-                <h1 style={{ marginBottom: '4px' }}>{user.nickname}</h1>
-                <p style={{ fontSize: '1rem' }}>{user.email || '尚未提供電子信箱'}</p>
-              </div>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  setShowViewProfileModal(false)
-                  openEditProfile()
-                }}
-                style={{ marginLeft: 'auto' }}
-              >
-                編輯個人檔案
-              </button>
-            </div>
-
-            <div className="ticks" style={{ margin: '20px 0', height: '1px', background: 'var(--card-border)' }}></div>
-
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>個人詳細資料</h2>
-            <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div className="profile-item">
-                <span className="profile-label">真實姓名</span>
-                <span className={user.realName ? "profile-value" : "profile-value-empty"}>
-                  {user.realName || '未填寫'}
-                </span>
-              </div>
-              <div className="profile-item">
-                <span className="profile-label">聯絡電話</span>
-                <span className={user.phone ? "profile-value" : "profile-value-empty"}>
-                  {user.phone || '未填寫'}
-                </span>
-              </div>
-              <div className="profile-item">
-                <span className="profile-label">通訊地址</span>
-                <span className={user.address ? "profile-value" : "profile-value-empty"}>
-                  {user.address || '未填寫'}
-                </span>
-              </div>
-              <div className="profile-item">
-                <span className="profile-label">帳號狀態</span>
-                <span className="profile-value" style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
-                  {user.status || 'ACTIVE'}
-                </span>
-              </div>
-            </div>
-
-            <div className="profile-item" style={{ marginTop: '20px' }}>
-              <span className="profile-label">個人簡介</span>
-              <span className={user.description ? "profile-value" : "profile-value-empty"}>
-                {user.description || '這個人很懶，什麼都沒寫。'}
-              </span>
-            </div>
+            {/* Render three blocks for this PAGE function */}
+            {renderFunctionBlocks(currentFunction)}
           </div>
         </div>
       )}
