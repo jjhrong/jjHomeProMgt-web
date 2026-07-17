@@ -164,13 +164,13 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
       </div>
 
       {showFormModal && (
-        <div className="modal-overlay" style={{ zIndex: 1200, overflowY: 'auto', padding: '40px 0' }}>
-          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '95%', maxWidth: '450px', padding: '24px', gap: '16px', maxHeight: '90vh', overflowY: 'auto', margin: 'auto' }}>
+        <div className="modal-overlay" style={{ zIndex: 1200, overflowY: 'auto', padding: '40px 0', alignItems: 'flex-start' }}>
+          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '95%', maxWidth: '450px', padding: '24px', gap: '16px', margin: '0 auto' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '8px', textAlign: 'center' }}>
               {isEditing ? `編輯 ${objectName.slice(0, -1)}` : `新增 ${objectName.slice(0, -1)}`}
             </h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {schema.fields.map(f => (
                 <div key={f.key} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.label}</label>
