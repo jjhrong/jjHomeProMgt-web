@@ -164,8 +164,8 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
       </div>
 
       {showFormModal && (
-        <div className="modal-overlay" style={{ zIndex: 1200 }}>
-          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '95%', maxWidth: '450px', padding: '24px', gap: '16px' }}>
+        <div className="modal-overlay" style={{ zIndex: 1200, overflowY: 'auto', padding: '40px 0' }}>
+          <form className="glass-panel modal-content" onSubmit={handleSubmit} style={{ width: '95%', maxWidth: '450px', padding: '24px', gap: '16px', maxHeight: '90vh', overflowY: 'auto', margin: 'auto' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '8px', textAlign: 'center' }}>
               {isEditing ? `編輯 ${objectName.slice(0, -1)}` : `新增 ${objectName.slice(0, -1)}`}
             </h3>
@@ -829,7 +829,12 @@ function App() {
       {/* 3. General Function Modal (for type PAGE) */}
       {currentFunction && (currentFunction.type === 'PAGE' || currentFunction.type === 'SETT') && (
         <div className="modal-overlay">
-          <div className="glass-panel modal-content" style={{ width: '80%', maxWidth: '800px', padding: '32px', position: 'relative' }}>
+          <div className="glass-panel modal-content" style={{ 
+            width: currentFunction.type === 'SETT' ? '90%' : '80%', 
+            maxWidth: currentFunction.type === 'SETT' ? '90%' : '800px', 
+            padding: '32px', 
+            position: 'relative' 
+          }}>
             {/* Close button (X) in top right */}
             <button 
               className="modal-close-btn" 
