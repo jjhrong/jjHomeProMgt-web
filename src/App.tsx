@@ -54,20 +54,34 @@ const INITIAL_DATA: { [key: string]: any[] } = {
   ]
 };
 
-const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
+const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigChange?: () => void }> = ({ objectName, token, onConfigChange }) => {
   const typeKey = objectName.toLowerCase() === 'functions' ? 'functions' : 'configs';
   const schema = SCHEMAS[typeKey] || SCHEMAS.configs;
   
   const [items, setItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    setItems(INITIAL_DATA[typeKey] || INITIAL_DATA.configs);
-  }, [typeKey]);
-
   const [form, setForm] = useState<any>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
+
+  const fetchItems = async () => {
+    if (!token) return;
+    try {
+      const url = typeKey === 'functions' 
+        ? `${API_BASE_URL}/api/v1/all_functions` 
+        : `${API_BASE_URL}/api/v1/configs`;
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setItems(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch items:', err);
+      setItems(INITIAL_DATA[typeKey] || INITIAL_DATA.configs);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, [typeKey, token]);
 
   const handleOpenAdd = () => {
     const defaultForm: any = {};
@@ -76,31 +90,60 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
     });
     setForm(defaultForm);
     setIsEditing(false);
-    setEditingIndex(null);
     setShowFormModal(true);
   };
 
-  const handleOpenEdit = (item: any, index: number) => {
+  const handleOpenEdit = (item: any) => {
     setForm({ ...item });
     setIsEditing(true);
-    setEditingIndex(index);
     setShowFormModal(true);
   };
 
-  const handleDelete = (index: number) => {
-    setItems(items.filter((_, idx) => idx !== index));
+  const handleDelete = async (item: any) => {
+    if (!token) return;
+    if (!window.confirm('確定要刪除此筆資料嗎？')) return;
+    try {
+      const url = typeKey === 'functions'
+        ? `${API_BASE_URL}/api/v1/functions/${item.id}`
+        : `${API_BASE_URL}/api/v1/configs?kind=${item.kind}&name=${item.name}&orderSn=${item.orderSn}`;
+      
+      await axios.delete(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      await fetchItems();
+
+      if (typeKey === 'configs' && onConfigChange) {
+        onConfigChange();
+      }
+    } catch (err) {
+      console.error('Failed to delete item:', err);
+      alert('刪除失敗。');
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditing && editingIndex !== null) {
-      const updated = [...items];
-      updated[editingIndex] = form;
-      setItems(updated);
-    } else {
-      setItems([...items, form]);
+    if (!token) return;
+    try {
+      const url = typeKey === 'functions'
+        ? `${API_BASE_URL}/api/v1/functions`
+        : `${API_BASE_URL}/api/v1/configs`;
+      
+      await axios.post(url, form, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      await fetchItems();
+      setShowFormModal(false);
+
+      if (typeKey === 'configs' && onConfigChange) {
+        onConfigChange();
+      }
+    } catch (err) {
+      console.error('Failed to save item:', err);
+      alert('儲存失敗，請檢查資料格式是否正確。');
     }
-    setShowFormModal(false);
   };
 
   return (
@@ -145,13 +188,13 @@ const CRUDTable: React.FC<{ objectName: string }> = ({ objectName }) => {
                 ))}
                 <td style={{ padding: '12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button 
-                    onClick={() => handleOpenEdit(item, idx)}
+                    onClick={() => handleOpenEdit(item)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginRight: '12px', fontSize: '0.85rem' }}
                   >
                     編輯
                   </button>
                   <button 
-                    onClick={() => handleDelete(idx)}
+                    onClick={() => handleDelete(item)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.85rem' }}
                   >
                     刪除
@@ -326,18 +369,19 @@ function App() {
     handleOAuthCallback()
   }, [])
 
+  const fetchSystemName = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/v1/configs/sys/name`)
+      if (response.data && response.data.name) {
+        setAppName(response.data.name)
+      }
+    } catch (err) {
+      console.error('Failed to fetch system name:', err)
+    }
+  }
+
   // Fetch system name config on mount
   useEffect(() => {
-    const fetchSystemName = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/configs/sys/name`)
-        if (response.data && response.data.name) {
-          setAppName(response.data.name)
-        }
-      } catch (err) {
-        console.error('Failed to fetch system name:', err)
-      }
-    }
     fetchSystemName()
   }, [])
 
@@ -485,7 +529,7 @@ function App() {
               </div>
             )}
             {func.type === 'SETT' && (
-              <CRUDTable objectName={func.name.split('_').pop() || 'Config'} />
+              <CRUDTable objectName={func.name.split('_').pop() || 'Config'} token={token} onConfigChange={fetchSystemName} />
             )}
           </div>
         )}
