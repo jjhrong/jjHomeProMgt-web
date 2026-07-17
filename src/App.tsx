@@ -43,7 +43,7 @@ const SCHEMAS: {
   functions: {
     fields: [
       { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true, hideInTable: true, hideInForm: true },
-      { key: 'pId', label: '父功能識別碼 (Parent ID)', type: 'text', hideInTable: true, hideInForm: true },
+      { key: 'pId', label: '父功能 (Parent Function)', type: 'select', hideInTable: true },
       { key: 'name', label: '功能名稱 (Name - 英文)', type: 'text', required: true },
       { key: 'orderSn', label: '排序編號 (Order SN)', type: 'number', required: true },
       { key: 'type', label: '功能類型 (Type)', type: 'select', selectOptions: ['HOME', 'PAGE', 'SETT'] },
@@ -245,7 +245,21 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
               {schema.fields.filter(f => !f.hideInForm).map(f => (
                 <div key={f.key} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.label}</label>
-                  {f.type === 'select' ? (
+                  {f.key === 'pId' && typeKey === 'functions' ? (
+                    <select 
+                      className="form-control" 
+                      value={form[f.key] || ''} 
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                      style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px' }}
+                    >
+                      <option value="">(無)</option>
+                      {items.filter(item => item.status === 'ACTIVE' && (!isEditing || item.id !== form.id)).map(opt => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.description} ({opt.name})
+                        </option>
+                      ))}
+                    </select>
+                  ) : f.type === 'select' ? (
                     <select 
                       className="form-control" 
                       value={form[f.key] || ''} 
