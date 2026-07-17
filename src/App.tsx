@@ -17,7 +17,19 @@ interface User {
   firstLogin: boolean
 }
 
-const SCHEMAS: { [key: string]: { fields: { key: string; label: string; type: string; required?: boolean; selectOptions?: string[] }[] } } = {
+const SCHEMAS: { 
+  [key: string]: { 
+    fields: { 
+      key: string; 
+      label: string; 
+      type: string; 
+      required?: boolean; 
+      selectOptions?: string[]; 
+      hideInTable?: boolean; 
+      hideInForm?: boolean; 
+    }[] 
+  } 
+} = {
   configs: {
     fields: [
       { key: 'kind', label: '類別 (Kind)', type: 'text', required: true },
@@ -30,8 +42,8 @@ const SCHEMAS: { [key: string]: { fields: { key: string; label: string; type: st
   },
   functions: {
     fields: [
-      { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true },
-      { key: 'pId', label: '父功能識別碼 (Parent ID)', type: 'text' },
+      { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true, hideInTable: true, hideInForm: true },
+      { key: 'pId', label: '父功能識別碼 (Parent ID)', type: 'text', hideInTable: true, hideInForm: true },
       { key: 'name', label: '功能名稱 (Name - 英文)', type: 'text', required: true },
       { key: 'orderSn', label: '排序編號 (Order SN)', type: 'number', required: true },
       { key: 'type', label: '功能類型 (Type)', type: 'select', selectOptions: ['HOME', 'PAGE', 'SETT'] },
@@ -52,6 +64,16 @@ const INITIAL_DATA: { [key: string]: any[] } = {
     { id: '00000000-0000-0000-0099-00000000', pId: '', name: 'Setting', orderSn: 0, type: 'PAGE', description: '設定', status: 'ACTIVE' },
     { id: '00000000-0000-0000-0099-00000001', pId: '00000000-0000-0000-0099-00000000', name: 'Setting_configs', orderSn: 0, type: 'SETT', description: '參數設定', status: 'ACTIVE' },
   ]
+};
+
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 };
 
 const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigChange?: () => void }> = ({ objectName, token, onConfigChange }) => {
@@ -86,7 +108,13 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
   const handleOpenAdd = () => {
     const defaultForm: any = {};
     schema.fields.forEach(f => {
-      defaultForm[f.key] = f.type === 'number' ? 0 : f.type === 'select' ? f.selectOptions?.[0] : '';
+      if (f.key === 'id' && typeKey === 'functions') {
+        defaultForm[f.key] = generateUUID();
+      } else if (f.key === 'pId' && typeKey === 'functions') {
+        defaultForm[f.key] = '';
+      } else {
+        defaultForm[f.key] = f.type === 'number' ? 0 : f.type === 'select' ? f.selectOptions?.[0] : '';
+      }
     });
     setForm(defaultForm);
     setIsEditing(false);
@@ -159,7 +187,7 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>
-              {schema.fields.map(f => (
+              {schema.fields.filter(f => !f.hideInTable).map(f => (
                 <th key={f.key} style={{ padding: '12px' }}>{f.label.split(' ')[0]}</th>
               ))}
               <th style={{ padding: '12px', textAlign: 'right' }}>操作</th>
@@ -168,7 +196,7 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
           <tbody>
             {items.map((item, idx) => (
               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                {schema.fields.map(f => (
+                {schema.fields.filter(f => !f.hideInTable).map(f => (
                   <td key={f.key} style={{ padding: '12px', color: f.key === 'status' ? undefined : 'var(--text-primary)' }}>
                     {f.key === 'status' ? (
                       <span style={{ 
@@ -214,7 +242,7 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {schema.fields.map(f => (
+              {schema.fields.filter(f => !f.hideInForm).map(f => (
                 <div key={f.key} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.label}</label>
                   {f.type === 'select' ? (
