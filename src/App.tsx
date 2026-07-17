@@ -221,7 +221,7 @@ function App() {
   const renderFunctionBlocks = (func: any) => {
     if (!func) return null
 
-    const showFirst = true
+    const showFirst = func.name && func.name.toLowerCase() !== 'home'
     const showSecond = func.name === 'Home' || func.name === 'User'
     const showThird = func.subFunctions && func.subFunctions.length > 0
 
@@ -650,9 +650,42 @@ function App() {
         </div>
       )}
 
+      {/* 3. General Function Modal (for type PAGE) */}
+      {currentFunction && currentFunction.type === 'PAGE' && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ width: '80%', maxWidth: '800px', padding: '32px', position: 'relative' }}>
+            {/* Close button (X) in top right */}
+            <button 
+              className="modal-close-btn" 
+              onClick={() => navigateTo('/')}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+                padding: '4px',
+                lineHeight: '1',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+            >
+              &times;
+            </button>
+
+            {/* Render three blocks for this PAGE function */}
+            {renderFunctionBlocks(currentFunction)}
+          </div>
+        </div>
+      )}
+
       {/* 2. Edit Profile Modal */}
       {showProfileModal && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
           <form className="glass-panel modal-content" onSubmit={handleSaveProfile} style={{ gap: '20px' }}>
             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" strokeWidth="2.5">
@@ -756,39 +789,6 @@ function App() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {/* 3. General Function Modal (for type PAGE) */}
-      {currentFunction && currentFunction.type === 'PAGE' && (
-        <div className="modal-overlay">
-          <div className="glass-panel modal-content" style={{ width: '80%', maxWidth: '800px', padding: '32px', position: 'relative' }}>
-            {/* Close button (X) in top right */}
-            <button 
-              className="modal-close-btn" 
-              onClick={() => navigateTo('/')}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                transition: 'color 0.2s',
-                padding: '4px',
-                lineHeight: '1',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
-            >
-              &times;
-            </button>
-
-            {/* Render three blocks for this PAGE function */}
-            {renderFunctionBlocks(currentFunction)}
-          </div>
         </div>
       )}
     </>
