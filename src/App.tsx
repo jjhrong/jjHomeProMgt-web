@@ -156,7 +156,10 @@ function App() {
 
       let functionName = path.slice(1)
       if (functionName === '') {
-        functionName = 'Home'
+        setIs404(false)
+        setCurrentFunction({ name: 'Home', description: '首頁', type: 'HOME' })
+        setIsValidatingRoute(false)
+        return
       }
 
       // If nested path, it's an invalid function name
