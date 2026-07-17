@@ -40,6 +40,11 @@ function App() {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [showViewProfileModal, setShowViewProfileModal] = useState(false)
+  
+  const [appName, setAppName] = useState('jjHomeProMgt')
+  const [is404, setIs404] = useState(false)
+  const [currentFunction, setCurrentFunction] = useState<any>(null)
+  const [isValidatingRoute, setIsValidatingRoute] = useState(false)
 
   // Configure Axios global interceptor for 401 errors
   useEffect(() => {
@@ -117,6 +122,77 @@ function App() {
 
     handleOAuthCallback()
   }, [])
+
+  // Fetch system name config on mount
+  useEffect(() => {
+    const fetchSystemName = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/configs/sys/name`)
+        if (response.data && response.data.name) {
+          setAppName(response.data.name)
+        }
+      } catch (err) {
+        console.error('Failed to fetch system name:', err)
+      }
+    }
+    fetchSystemName()
+  }, [])
+
+  // Dynamic function routing verification
+  useEffect(() => {
+    const validateRoute = async () => {
+      // Clear route errors if not logged in
+      if (!token || !user) {
+        setIs404(false)
+        setCurrentFunction(null)
+        return
+      }
+
+      const path = window.location.pathname
+      // Skip OAuth callback path
+      if (path.startsWith('/auth/callback')) {
+        return
+      }
+
+      let functionName = path.slice(1)
+      if (functionName === '') {
+        functionName = 'Home'
+      }
+
+      // If nested path, it's an invalid function name
+      if (functionName.includes('/')) {
+        setIs404(true)
+        setCurrentFunction(null)
+        return
+      }
+
+      setIsValidatingRoute(true)
+      setIs404(false)
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        const funcData = response.data
+        setCurrentFunction(funcData)
+
+        if (funcData.name === 'User') {
+          setShowViewProfileModal(true)
+        } else {
+          setShowViewProfileModal(false)
+        }
+      } catch (err) {
+        console.error('Route validation failed:', err)
+        setIs404(true)
+        setCurrentFunction(null)
+      } finally {
+        setIsValidatingRoute(false)
+      }
+    }
+
+    validateRoute()
+  }, [token, user])
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -219,7 +295,11 @@ function App() {
     <>
       {/* Top Navbar */}
       <header className="app-header">
-        <div className="logo-container">
+        <div 
+          className="logo-container"
+          onClick={() => { window.location.href = '/' }}
+          style={{ cursor: 'pointer' }}
+        >
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#logoGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <defs>
               <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -230,7 +310,7 @@ function App() {
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          <span className="logo-text">jjHomeProMgt</span>
+          <span className="logo-text">{appName}</span>
         </div>
         {user && (
           <div className="user-nav-profile">
@@ -284,15 +364,57 @@ function App() {
               </div>
             )}
 
-            {/* Page content currently kept blank for future function buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
-            </div>
+            {is404 ? (
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', textAlign: 'center', padding: '40px', margin: '20px 0', border: '1px solid var(--accent-red)' }}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '24px', filter: 'drop-shadow(var(--neon-red))' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                <h1 style={{ fontSize: '2rem', marginBottom: '8px', color: 'var(--text-primary)' }}>404 Function Not Found</h1>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>您存取的系統功能選單或頁面不存在或已被停用。</p>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => { window.location.href = '/' }}
+                  style={{ padding: '10px 24px' }}
+                >
+                  返回首頁
+                </button>
+              </div>
+            ) : isValidatingRoute ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.6 }}>
+                <div className="spinner" style={{ width: '30px', height: '30px', color: 'var(--accent-purple)', marginBottom: '16px' }}></div>
+                <p style={{ fontSize: '0.95rem' }}>載入並驗證系統功能選單中...</p>
+              </div>
+            ) : (
+              <>
+                {currentFunction && currentFunction.name !== 'Home' && currentFunction.name !== 'User' && (
+                  <div className="glass-panel" style={{ padding: '24px', margin: '20px 0', border: '1px solid var(--card-border)' }}>
+                    <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                      {currentFunction.description}
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {currentFunction.name} | 類型: {currentFunction.type}</p>
+                  </div>
+                )}
+
+                {/* Page content currently kept blank for future function buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </main>
@@ -308,7 +430,7 @@ function App() {
                 <polyline points="17 11 19 13 23 9" />
               </svg>
             </div>
-            <h2 className="modal-title">歡迎登入 jjHomeProMgt</h2>
+            <h2 className="modal-title">歡迎登入 {appName}</h2>
             <p className="modal-subtitle">請選擇您喜好的社群帳號，立即開始您的管理之旅。</p>
 
             {loginError && (
