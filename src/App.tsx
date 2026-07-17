@@ -39,6 +39,7 @@ function App() {
   })
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [showViewProfileModal, setShowViewProfileModal] = useState(false)
 
   // Configure Axios global interceptor for 401 errors
   useEffect(() => {
@@ -233,14 +234,28 @@ function App() {
         </div>
         {user && (
           <div className="user-nav-profile">
-            {user.avatarUrl ? (
-              <img className="avatar" src={user.avatarUrl} alt={user.nickname} />
-            ) : (
-              <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
-              </div>
-            )}
-            <span className="nav-nickname">{user.nickname}</span>
+            <div 
+              className="user-nav-trigger" 
+              onClick={() => setShowViewProfileModal(true)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+            >
+              {user.avatarUrl ? (
+                <img className="avatar" src={user.avatarUrl} alt={user.nickname} />
+              ) : (
+                <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                  {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <span className="nav-nickname">{user.nickname}</span>
+            </div>
             <button className="btn btn-outline" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
               登出
             </button>
@@ -269,60 +284,14 @@ function App() {
               </div>
             )}
 
-            <div className="glass-panel hero-card">
-              <div className="profile-header-card">
-                {user.avatarUrl ? (
-                  <img className="avatar-large" src={user.avatarUrl} alt={user.nickname} />
-                ) : (
-                  <div className="avatar-large" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold', background: 'var(--bg-secondary)', color: 'var(--accent-purple)' }}>
-                    {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-                <div>
-                  <h1 style={{ marginBottom: '4px' }}>{user.nickname}</h1>
-                  <p style={{ fontSize: '1rem' }}>{user.email || '尚未提供電子信箱'}</p>
-                </div>
-                <button className="btn btn-primary" onClick={openEditProfile} style={{ marginLeft: 'auto' }}>
-                  編輯個人檔案
-                </button>
-              </div>
-
-              <div className="ticks" style={{ margin: '20px 0', height: '1px', background: 'var(--card-border)' }}></div>
-
-              <h2>個人詳細資料</h2>
-              <div className="profile-grid">
-                <div className="profile-item">
-                  <span className="profile-label">真實姓名</span>
-                  <span className={user.realName ? "profile-value" : "profile-value-empty"}>
-                    {user.realName || '未填寫'}
-                  </span>
-                </div>
-                <div className="profile-item">
-                  <span className="profile-label">聯絡電話</span>
-                  <span className={user.phone ? "profile-value" : "profile-value-empty"}>
-                    {user.phone || '未填寫'}
-                  </span>
-                </div>
-                <div className="profile-item">
-                  <span className="profile-label">通訊地址</span>
-                  <span className={user.address ? "profile-value" : "profile-value-empty"}>
-                    {user.address || '未填寫'}
-                  </span>
-                </div>
-                <div className="profile-item">
-                  <span className="profile-label">帳號狀態</span>
-                  <span className="profile-value" style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
-                    {user.status || 'ACTIVE'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="profile-item" style={{ marginTop: '20px' }}>
-                <span className="profile-label">個人簡介</span>
-                <span className={user.description ? "profile-value" : "profile-value-empty"}>
-                  {user.description || '這個人很懶，什麼都沒寫。'}
-                </span>
-              </div>
+            {/* Page content currently kept blank for future function buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '20px 0' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
             </div>
           </div>
         )}
@@ -498,6 +467,97 @@ function App() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* 3. View Profile Modal */}
+      {showViewProfileModal && user && (
+        <div className="modal-overlay" onClick={() => setShowViewProfileModal(false)}>
+          <div className="glass-panel modal-content" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '600px', width: '90%' }}>
+            {/* Close button (X) in top right */}
+            <button 
+              className="modal-close-btn" 
+              onClick={() => setShowViewProfileModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+                padding: '4px',
+                lineHeight: '1',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+            >
+              &times;
+            </button>
+
+            <div className="profile-header-card" style={{ marginTop: '10px' }}>
+              {user.avatarUrl ? (
+                <img className="avatar-large" src={user.avatarUrl} alt={user.nickname} />
+              ) : (
+                <div className="avatar-large" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold', background: 'var(--bg-secondary)', color: 'var(--accent-purple)' }}>
+                  {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <div>
+                <h1 style={{ marginBottom: '4px' }}>{user.nickname}</h1>
+                <p style={{ fontSize: '1rem' }}>{user.email || '尚未提供電子信箱'}</p>
+              </div>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  setShowViewProfileModal(false)
+                  openEditProfile()
+                }}
+                style={{ marginLeft: 'auto' }}
+              >
+                編輯個人檔案
+              </button>
+            </div>
+
+            <div className="ticks" style={{ margin: '20px 0', height: '1px', background: 'var(--card-border)' }}></div>
+
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>個人詳細資料</h2>
+            <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div className="profile-item">
+                <span className="profile-label">真實姓名</span>
+                <span className={user.realName ? "profile-value" : "profile-value-empty"}>
+                  {user.realName || '未填寫'}
+                </span>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">聯絡電話</span>
+                <span className={user.phone ? "profile-value" : "profile-value-empty"}>
+                  {user.phone || '未填寫'}
+                </span>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">通訊地址</span>
+                <span className={user.address ? "profile-value" : "profile-value-empty"}>
+                  {user.address || '未填寫'}
+                </span>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">帳號狀態</span>
+                <span className="profile-value" style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
+                  {user.status || 'ACTIVE'}
+                </span>
+              </div>
+            </div>
+
+            <div className="profile-item" style={{ marginTop: '20px' }}>
+              <span className="profile-label">個人簡介</span>
+              <span className={user.description ? "profile-value" : "profile-value-empty"}>
+                {user.description || '這個人很懶，什麼都沒寫。'}
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </>
