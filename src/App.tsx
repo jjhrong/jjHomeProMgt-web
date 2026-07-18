@@ -7,7 +7,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+const getApiBaseUrl = () => {
+  const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+  return url.endsWith('/') ? url.slice(0, -1) : url
+}
+const API_BASE_URL = getApiBaseUrl()
 
 interface User {
   id: string
