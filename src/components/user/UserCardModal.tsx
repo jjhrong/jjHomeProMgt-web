@@ -201,11 +201,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
               {cardDetails.nickname}
             </h3>
             {cardDetails.combinedTitle ? (
-              <span className="text-xs font-semibold text-violet-400 mt-1 truncate" title={cardDetails.combinedTitle}>
+              <span className="text-sm font-bold text-violet-400 mt-1 truncate" title={cardDetails.combinedTitle}>
                 👑 {cardDetails.combinedTitle}
               </span>
             ) : (
-              <span className="text-xs text-slate-400 mt-1">一般用戶</span>
+              <span className="text-sm text-slate-400 mt-1">一般用戶</span>
             )}
           </div>
 
@@ -214,28 +214,28 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
             {isSelf ? (
               <button 
                 onClick={onEdit} 
-                className="px-4 py-2 text-xs font-semibold rounded-full border border-violet-500/35 bg-violet-600/10 text-violet-300 hover:bg-violet-600/30 hover:border-violet-500/70 transition-all duration-300 cursor-pointer shadow-md"
+                className="px-5 py-2.5 text-sm font-bold rounded-full border border-violet-500/35 bg-violet-600/10 text-violet-300 hover:bg-violet-600/30 hover:border-violet-500/70 transition-all duration-300 cursor-pointer shadow-md"
               >
                 編輯資訊
               </button>
             ) : isFriend ? (
-              <span className="px-4 py-2 text-xs font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700 shadow-sm">
+              <span className="px-5 py-2.5 text-sm font-bold rounded-full bg-slate-800 text-slate-400 border border-slate-700 shadow-sm">
                 朋友
               </span>
             ) : (isPending || hasApplied) ? (
-              <span className="px-4 py-2 text-xs font-semibold rounded-full bg-slate-800/50 text-slate-500 border border-slate-700/50 shadow-sm">
+              <span className="px-5 py-2.5 text-sm font-bold rounded-full bg-slate-800/50 text-slate-500 border border-slate-700/50 shadow-sm">
                 已申請
               </span>
             ) : (
               <button 
                 onClick={handleApplyFriend}
                 disabled={isApplying}
-                className="px-4 py-2 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 cursor-pointer disabled:opacity-50 flex items-center gap-1 shadow-lg shadow-blue-600/20 active:scale-95"
+                className="px-5 py-2.5 text-sm font-bold rounded-full bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-blue-600/20 active:scale-95"
               >
                 {isApplying ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <UserPlus className="w-3.5 h-3.5" />
+                  <UserPlus className="w-4 h-4" />
                 )}
                 朋友+
               </button>
@@ -251,57 +251,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           </div>
         )}
 
-
-
-        {/* Middle Section: Assets Grid */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {/* COIN_J Card */}
-          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
-            <span className="text-xs text-slate-400 font-medium">J幣餘額</span>
-            <span className="text-lg font-bold text-violet-300 mt-2 font-mono">
-              {coinBalance.toLocaleString()}
-            </span>
-          </div>
-
-          {/* EXP_PERSONAL Card */}
-          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
-            <span className="text-xs text-slate-400 font-medium">個人經驗值</span>
-            <span className="text-lg font-bold text-teal-300 mt-2 font-mono">
-              {expBalance.toLocaleString()}
-            </span>
-          </div>
-
-          {/* EXP_DAY Card */}
-          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
-            <span className="text-xs text-slate-400 font-medium">經驗日</span>
-            <span className="text-lg font-bold text-amber-300 mt-2 font-mono">
-              {dayBalance.toLocaleString()}
-            </span>
-          </div>
-
-          {/* FRIEND_COUNT Card */}
-          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
-            <span className="text-xs text-slate-400 font-medium">好友數</span>
-            <span className="text-lg font-bold text-blue-300 mt-2 font-mono">
-              {friendCount.toLocaleString()}
-            </span>
-          </div>
-
-          {/* WIN_RATE Card */}
-          <div className="col-span-2 p-3.5 rounded-2xl bg-gradient-to-r from-violet-600/15 to-blue-600/15 border border-white/5 flex items-center justify-between transition-all duration-300 hover:bg-gradient-to-r hover:from-violet-600/20 hover:to-blue-600/20">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-slate-400">遊戲勝率</span>
-              <span className="text-[10px] text-slate-500">勝率越高代表遊戲技巧越熟練</span>
-            </div>
-            <span className="text-xl font-black bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent font-mono">
-              {winRate.toFixed(1)}%
-            </span>
-          </div>
-        </div>
-
         {/* Bottom Section: Description */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">個人簡介</span>
+        <div className="flex flex-col gap-2 mt-4">
           <div className="p-4 rounded-2xl bg-slate-950/40 border border-white/5 text-slate-300 text-sm leading-relaxed min-h-[80px] break-words">
             {cardDetails.description || '這個人很懶，什麼都沒留下...'}
           </div>
