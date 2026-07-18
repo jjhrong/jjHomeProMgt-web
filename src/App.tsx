@@ -5,7 +5,7 @@ import { AutoCompleteSearch } from './components/AutoCompleteSearch'
 import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
-import { Settings, LogOut, User } from 'lucide-react'
+import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
@@ -950,6 +950,7 @@ function App() {
   const [is404, setIs404] = useState(false)
   const [currentFunction, setCurrentFunction] = useState<any>(null)
   const [isValidatingRoute, setIsValidatingRoute] = useState(false)
+  const [backendError, setBackendError] = useState<string | null>(null)
 
   // Configure Axios global interceptor for 401 errors
   useEffect(() => {
@@ -1054,8 +1055,12 @@ function App() {
       if (response.data && response.data.name) {
         setAppName(response.data.name)
       }
-    } catch (err) {
+      setBackendError(null)
+    } catch (err: any) {
       console.error('Failed to fetch system name:', err)
+      if (!err.response) {
+        setBackendError('網路連線失敗，無法連接到後端伺服器。')
+      }
     }
   }
 
@@ -1104,10 +1109,14 @@ function App() {
       })
       const funcData = response.data
       setCurrentFunction(normalizeStatus(funcData))
-    } catch (err) {
+      setBackendError(null)
+    } catch (err: any) {
       console.error('Route validation failed:', err)
       setIs404(true)
       setCurrentFunction(null)
+      if (!err.response) {
+        setBackendError('網路連線失敗，無法連接到後端伺服器。')
+      }
     } finally {
       setIsValidatingRoute(false)
     }
@@ -1123,14 +1132,20 @@ function App() {
     const fetchHomeFunction = async () => {
       if (!token || !user) return
       try {
+        setBackendError(null)
         const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         })
         setHomeFunction(normalizeStatus(response.data))
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch home function:', err)
+        if (!err.response) {
+          setBackendError('網路連線失敗，無法連接到後端伺服器。')
+        } else {
+          setBackendError(`取得功能選單失敗: ${err.response?.data?.error || err.message}`)
+        }
       }
     }
     fetchHomeFunction()
@@ -1381,6 +1396,46 @@ function App() {
 
   return (
     <>
+      {backendError && (
+        <div className="bg-rose-950/85 border-b border-rose-500/30 text-rose-200 px-6 py-3.5 text-sm flex items-center justify-between gap-4 backdrop-blur-md z-[2000] relative animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0" />
+            <div>
+              <span className="font-semibold text-rose-350">系統連線異常：</span>
+              <span>{backendError}</span>
+              <span className="text-slate-400 ml-2 font-mono text-xs">(API Base: {API_BASE_URL})</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              fetchSystemName()
+              if (token && user) {
+                const fetchHomeFunction = async () => {
+                  try {
+                    setBackendError(null)
+                    const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    })
+                    setHomeFunction(normalizeStatus(response.data))
+                  } catch (err: any) {
+                    console.error('Failed to fetch home function:', err)
+                    if (!err.response) {
+                      setBackendError('網路連線失敗，無法連接到後端伺服器。')
+                    } else {
+                      setBackendError(`取得功能選單失敗: ${err.response?.data?.error || err.message}`)
+                    }
+                  }
+                }
+                fetchHomeFunction()
+                validateRoute(token, user)
+              }
+            }}
+            className="text-xs bg-rose-500/20 hover:bg-rose-500/35 hover:text-white text-rose-200 px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer shrink-0 border border-rose-500/25 active:scale-95"
+          >
+            重新整理連線
+          </button>
+        </div>
+      )}
       {/* Top Navbar */}
       <header className="app-header">
         <div 
