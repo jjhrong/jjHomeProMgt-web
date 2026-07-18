@@ -955,6 +955,7 @@ function App() {
   const [currentFunction, setCurrentFunction] = useState<any>(null)
   const [isValidatingRoute, setIsValidatingRoute] = useState(false)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [hasSettingPermission, setHasSettingPermission] = useState<boolean>(false)
 
   // Configure Axios global interceptor for 401 errors
   useEffect(() => {
@@ -1131,28 +1132,49 @@ function App() {
     validateRoute(token, user)
   }, [location.pathname, token, user])
 
-  // Fetch home function details once logged in
-  useEffect(() => {
-    const fetchHomeFunction = async () => {
-      if (!token || !user) return
-      try {
-        setBackendError(null)
-        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        setHomeFunction(normalizeStatus(response.data))
-      } catch (err: any) {
-        console.error('Failed to fetch home function:', err)
-        if (!err.response) {
-          setBackendError('網路連線失敗，無法連接到後端伺服器。')
-        } else {
-          setBackendError(`取得功能選單失敗: ${err.response?.data?.error || err.message}`)
+  const fetchHomeFunction = async (tokenVal: string | null) => {
+    if (!tokenVal) return
+    try {
+      setBackendError(null)
+      const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+        headers: {
+          Authorization: `Bearer ${tokenVal}`
         }
+      })
+      setHomeFunction(normalizeStatus(response.data))
+    } catch (err: any) {
+      console.error('Failed to fetch home function:', err)
+      if (!err.response) {
+        setBackendError('網路連線失敗，無法連接到後端伺服器。')
+      } else {
+        setBackendError(`取得功能選單失敗: ${err.response?.data?.error || err.message}`)
       }
     }
-    fetchHomeFunction()
+  }
+
+  const checkSettingPermission = async (tokenVal: string | null, userVal: any) => {
+    if (!tokenVal || !userVal) {
+      setHasSettingPermission(false)
+      return
+    }
+    try {
+      await axios.get(`${API_BASE_URL}/api/v1/functions?name=Setting`, {
+        headers: {
+          Authorization: `Bearer ${tokenVal}`
+        }
+      })
+      setHasSettingPermission(true)
+    } catch (err) {
+      setHasSettingPermission(false)
+    }
+  }
+
+  // Fetch home function details once logged in
+  useEffect(() => {
+    if (token && user) {
+      fetchHomeFunction(token)
+      checkSettingPermission(token, user)
+    }
   }, [token, user])
 
   // General layout function block renderer
@@ -1414,23 +1436,8 @@ function App() {
             onClick={() => {
               fetchSystemName()
               if (token && user) {
-                const fetchHomeFunction = async () => {
-                  try {
-                    setBackendError(null)
-                    const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
-                      headers: { Authorization: `Bearer ${token}` }
-                    })
-                    setHomeFunction(normalizeStatus(response.data))
-                  } catch (err: any) {
-                    console.error('Failed to fetch home function:', err)
-                    if (!err.response) {
-                      setBackendError('網路連線失敗，無法連接到後端伺服器。')
-                    } else {
-                      setBackendError(`取得功能選單失敗: ${err.response?.data?.error || err.message}`)
-                    }
-                  }
-                }
-                fetchHomeFunction()
+                fetchHomeFunction(token)
+                checkSettingPermission(token, user)
                 validateRoute(token, user)
               }
             }}
@@ -1536,16 +1543,18 @@ function App() {
                     個人檔案
                   </button>
                   
-                  <button
-                    onClick={() => {
-                      setIsUserDropdownOpen(false)
-                      navigateTo('/Setting')
-                    }}
-                    className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
-                  >
-                    <Settings className="h-4 w-4 text-slate-400" />
-                    設定
-                  </button>
+                  {hasSettingPermission && (
+                    <button
+                      onClick={() => {
+                        setIsUserDropdownOpen(false)
+                        navigateTo('/Setting')
+                      }}
+                      className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
+                    >
+                      <Settings className="h-4 w-4 text-slate-400" />
+                      設定
+                    </button>
+                  )}
 
                   <hr className="border-slate-800/50 my-1" />
 
