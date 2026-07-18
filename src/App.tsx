@@ -6,7 +6,6 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
-import type { AppConfig } from './utils/titleMatcher'
 import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
 
 const getApiBaseUrl = () => {
@@ -945,7 +944,6 @@ function App() {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [selectedSearchUser, setSelectedSearchUser] = useState<SearchUser | null>(null)
-  const [configsCache, setConfigsCache] = useState<AppConfig[]>([])
   const [homeFunction, setHomeFunction] = useState<any>({
     name: 'Home',
     description: '首頁',
@@ -977,26 +975,6 @@ function App() {
     }
   }, [])
 
-  // Fetch configurations cache on login / mount
-  useEffect(() => {
-    const fetchConfigs = async () => {
-      if (!token) {
-        setConfigsCache([])
-        return
-      }
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/v1/configs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        if (Array.isArray(res.data)) {
-          setConfigsCache(res.data)
-        }
-      } catch (err) {
-        console.error('Failed to fetch configurations:', err)
-      }
-    }
-    fetchConfigs()
-  }, [token])
 
   // Handle clicking outside user avatar dropdown to close it
   useEffect(() => {
@@ -1868,7 +1846,6 @@ function App() {
           currentUserId={user ? user.id : ''}
           token={token}
           apiBaseUrl={API_BASE_URL}
-          configs={configsCache}
           onClose={() => setSelectedSearchUser(null)}
           onEdit={() => {
             setSelectedSearchUser(null)

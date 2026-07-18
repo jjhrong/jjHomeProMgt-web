@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { X, UserPlus, Loader2, AlertCircle } from 'lucide-react'
-import { matchAssetTitle } from '../../utils/titleMatcher'
-import type { AppConfig } from '../../utils/titleMatcher'
 
 export interface AssetBalanceDTO {
   category_code: string
@@ -29,7 +27,6 @@ interface UserCardModalProps {
   currentUserId: string
   token: string | null
   apiBaseUrl: string
-  configs: AppConfig[]
   onClose: () => void
   onEdit: () => void
 }
@@ -39,7 +36,6 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   currentUserId,
   token,
   apiBaseUrl,
-  configs,
   onClose,
   onEdit,
 }) => {
@@ -162,16 +158,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   const isPending = cardDetails.friend_status === 0
   const winRate = cardDetails.win_rate || 0
 
-  // Balances and dynamic titles
+  // Balances
   const coinBalance = getBalance('COIN_J')
   const expBalance = getBalance('EXP_PERSONAL')
   const dayBalance = getBalance('EXP_DAY')
   const friendCount = getBalance('FRIEND_COUNT')
-
-  const coinTitle = matchAssetTitle(configs, 'COIN_J', coinBalance)
-  const expTitle = matchAssetTitle(configs, 'EXP_PERSONAL', expBalance)
-  const dayTitle = matchAssetTitle(configs, 'EXP_DAY', dayBalance)
-  const friendTitle = matchAssetTitle(configs, 'FRIEND_COUNT', friendCount)
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
@@ -204,19 +195,18 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
             )}
           </div>
 
-          {/* Nickname & Realname */}
+          {/* Nickname & Combined Title */}
           <div className="flex flex-col min-w-0">
             <h3 className="text-xl font-bold text-white truncate" title={cardDetails.nickname}>
               {cardDetails.nickname}
             </h3>
-            {cardDetails.combinedTitle && (
-              <span className="text-xs font-semibold text-violet-400 mt-0.5 tracking-wider truncate" title={cardDetails.combinedTitle}>
+            {cardDetails.combinedTitle ? (
+              <span className="text-xs font-semibold text-violet-400 mt-1 truncate" title={cardDetails.combinedTitle}>
                 👑 {cardDetails.combinedTitle}
               </span>
+            ) : (
+              <span className="text-xs text-slate-400 mt-1">一般用戶</span>
             )}
-            <span className="text-xs text-slate-400 mt-0.5 truncate" title={cardDetails.real_name || '無真實姓名'}>
-              {cardDetails.real_name || '無真實姓名'}
-            </span>
           </div>
 
           {/* Action button */}
@@ -261,65 +251,49 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           </div>
         )}
 
+        {/* Combined Title Banner */}
+        {cardDetails.combinedTitle && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-600/15 via-fuchsia-600/10 to-blue-600/15 border border-violet-500/30 flex flex-col items-center justify-center text-center gap-1 shadow-lg shadow-violet-500/5 select-none mt-2">
+            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
+              👑 榮譽稱號
+            </span>
+            <span className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-300 to-blue-300 tracking-wide drop-shadow-sm font-medium">
+              {cardDetails.combinedTitle}
+            </span>
+          </div>
+        )}
+
         {/* Middle Section: Assets Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           {/* COIN_J Card */}
-          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[90px] transition-all duration-300 hover:bg-white/8">
-            <div className="flex justify-between items-start text-xs text-slate-400">
-              <span className="font-medium">J幣餘額</span>
-              {coinTitle && (
-                <span className="text-[11px] font-mono text-slate-350 bg-white/5 px-2 py-0.5 rounded-md">
-                  {coinBalance.toLocaleString()}
-                </span>
-              )}
-            </div>
-            <span className="text-lg font-bold text-violet-300 mt-2">
-              {coinTitle || coinBalance.toLocaleString()}
+          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
+            <span className="text-xs text-slate-400 font-medium">J幣餘額</span>
+            <span className="text-lg font-bold text-violet-300 mt-2 font-mono">
+              {coinBalance.toLocaleString()}
             </span>
           </div>
 
           {/* EXP_PERSONAL Card */}
-          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[90px] transition-all duration-300 hover:bg-white/8">
-            <div className="flex justify-between items-start text-xs text-slate-400">
-              <span className="font-medium">個人經驗值</span>
-              {expTitle && (
-                <span className="text-[11px] font-mono text-slate-350 bg-white/5 px-2 py-0.5 rounded-md">
-                  {expBalance.toLocaleString()}
-                </span>
-              )}
-            </div>
-            <span className="text-lg font-bold text-teal-300 mt-2">
-              {expTitle || expBalance.toLocaleString()}
+          <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
+            <span className="text-xs text-slate-400 font-medium">個人經驗值</span>
+            <span className="text-lg font-bold text-teal-300 mt-2 font-mono">
+              {expBalance.toLocaleString()}
             </span>
           </div>
 
           {/* EXP_DAY Card */}
-          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[90px] transition-all duration-300 hover:bg-white/8">
-            <div className="flex justify-between items-start text-xs text-slate-400">
-              <span className="font-medium">經驗日</span>
-              {dayTitle && (
-                <span className="text-[11px] font-mono text-slate-350 bg-white/5 px-2 py-0.5 rounded-md">
-                  {dayBalance.toLocaleString()}
-                </span>
-              )}
-            </div>
-            <span className="text-lg font-bold text-amber-300 mt-2">
-              {dayTitle || dayBalance.toLocaleString()}
+          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
+            <span className="text-xs text-slate-400 font-medium">經驗日</span>
+            <span className="text-lg font-bold text-amber-300 mt-2 font-mono">
+              {dayBalance.toLocaleString()}
             </span>
           </div>
 
           {/* FRIEND_COUNT Card */}
-          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[90px] transition-all duration-300 hover:bg-white/8">
-            <div className="flex justify-between items-start text-xs text-slate-400">
-              <span className="font-medium">好友數</span>
-              {friendTitle && (
-                <span className="text-[11px] font-mono text-slate-350 bg-white/5 px-2 py-0.5 rounded-md">
-                  {friendCount.toLocaleString()}
-                </span>
-              )}
-            </div>
-            <span className="text-lg font-bold text-blue-300 mt-2">
-              {friendTitle || friendCount.toLocaleString()}
+          <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[80px] transition-all duration-300 hover:bg-white/8">
+            <span className="text-xs text-slate-400 font-medium">好友數</span>
+            <span className="text-lg font-bold text-blue-300 mt-2 font-mono">
+              {friendCount.toLocaleString()}
             </span>
           </div>
 
