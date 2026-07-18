@@ -19,6 +19,9 @@ export interface UserCardResponseDTO {
   friend_status: number // 0待審核、1失效、8正式好友、-1陌生人
   balances: AssetBalanceDTO[]
   win_rate: number
+  mainTitle?: string
+  subTitle?: string
+  combinedTitle?: string
 }
 
 interface UserCardModalProps {
@@ -206,7 +209,12 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
             <h3 className="text-xl font-bold text-white truncate" title={cardDetails.nickname}>
               {cardDetails.nickname}
             </h3>
-            <span className="text-xs text-slate-400 truncate" title={cardDetails.real_name || '無真實姓名'}>
+            {cardDetails.combinedTitle && (
+              <span className="text-xs font-semibold text-violet-400 mt-0.5 tracking-wider truncate" title={cardDetails.combinedTitle}>
+                👑 {cardDetails.combinedTitle}
+              </span>
+            )}
+            <span className="text-xs text-slate-400 mt-0.5 truncate" title={cardDetails.real_name || '無真實姓名'}>
               {cardDetails.real_name || '無真實姓名'}
             </span>
           </div>
