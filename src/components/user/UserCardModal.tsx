@@ -154,7 +154,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   if (!cardDetails) return null
 
   const isSelf = currentUserId === cardDetails.id
-  const isFriend = (cardDetails.friend_status & 8) === 8
+  const isFriend = cardDetails.friend_status === 8
   const isPending = cardDetails.friend_status === 0
   const winRate = cardDetails.win_rate || 0
 
