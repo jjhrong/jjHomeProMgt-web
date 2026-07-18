@@ -251,17 +251,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           </div>
         )}
 
-        {/* Combined Title Banner */}
-        {cardDetails.combinedTitle && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-600/15 via-fuchsia-600/10 to-blue-600/15 border border-violet-500/30 flex flex-col items-center justify-center text-center gap-1 shadow-lg shadow-violet-500/5 select-none mt-2">
-            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
-              👑 榮譽稱號
-            </span>
-            <span className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-300 to-blue-300 tracking-wide drop-shadow-sm font-medium">
-              {cardDetails.combinedTitle}
-            </span>
-          </div>
-        )}
+
 
         {/* Middle Section: Assets Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
