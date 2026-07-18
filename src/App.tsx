@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
+import { AutoCompleteSearch } from './components/AutoCompleteSearch'
+import type { SearchUser } from './components/AutoCompleteSearch'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { NotificationBell } from './components/NotificationBell'
+import { Settings, LogOut, User } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
@@ -50,6 +55,26 @@ const SCHEMAS: {
       { key: 'description', label: '中文描述 (Description)', type: 'text', required: true },
       { key: 'status', label: '狀態 (Status)', type: 'select', selectOptions: ['ACTIVE', 'INACTIVE'] },
     ]
+  },
+  groups: {
+    fields: [
+      { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true, hideInTable: true, hideInForm: true },
+      { key: 'name', label: '群組名稱 (Name)', type: 'text', required: true },
+      { key: 'description', label: '群組描述 (Description)', type: 'text', required: true },
+      { key: 'status', label: '狀態 (Status)', type: 'select', selectOptions: ['ACTIVE', 'INACTIVE'] },
+    ]
+  },
+  users: {
+    fields: [
+      { key: 'id', label: '唯一識別碼 (ID)', type: 'text', required: true, hideInTable: true, hideInForm: true },
+      { key: 'nickname', label: '暱稱 (Nickname)', type: 'text', required: true },
+      { key: 'realName', label: '真實姓名 (Real Name)', type: 'text' },
+      { key: 'phone', label: '電話 (Phone)', type: 'text' },
+      { key: 'address', label: '地址 (Address)', type: 'text' },
+      { key: 'email', label: '電子郵件 (Email)', type: 'text' },
+      { key: 'description', label: '簡介 (Description)', type: 'text' },
+      { key: 'status', label: '狀態 (Status)', type: 'select', selectOptions: ['ACTIVE', 'INACTIVE'] },
+    ]
   }
 };
 
@@ -63,7 +88,9 @@ const INITIAL_DATA: { [key: string]: any[] } = {
     { id: '00000000-0000-0000-0000-00000001', pId: '', name: 'User', orderSn: 0, type: 'PAGE', description: '使用者', status: 'ACTIVE' },
     { id: '00000000-0000-0000-0099-00000000', pId: '', name: 'Setting', orderSn: 0, type: 'PAGE', description: '設定', status: 'ACTIVE' },
     { id: '00000000-0000-0000-0099-00000001', pId: '00000000-0000-0000-0099-00000000', name: 'Setting_configs', orderSn: 0, type: 'SETT', description: '參數設定', status: 'ACTIVE' },
-  ]
+    { id: '00000000-0000-0000-0099-00000002', pId: '00000000-0000-0000-0099-00000000', name: 'Setting_Auth', orderSn: 1, type: 'SETT', description: '權限設定', status: 'ACTIVE' },
+  ],
+  groups: []
 };
 
 const generateUUID = () => {
@@ -76,8 +103,84 @@ const generateUUID = () => {
   });
 };
 
+const StatusFlag = {
+  Disabled:  1 << 0,  // 1
+  Hidden:    1 << 1,  // 2
+  Locked:    1 << 2,  // 4
+  Completed: 1 << 3,  // 8
+};
+
+const toStatusObj = (statusVal: any): any => {
+  const defaultObj = {
+    disabled: false,
+    hidden: false,
+    locked: false,
+    completed: false,
+  };
+
+  if (statusVal === undefined || statusVal === null) {
+    return defaultObj;
+  }
+
+  // If it's already an object, merge with default to ensure all fields exist
+  if (typeof statusVal === 'object') {
+    return { ...defaultObj, ...statusVal };
+  }
+
+  // If it's a legacy string
+  if (typeof statusVal === 'string') {
+    const str = statusVal.toUpperCase().trim();
+    if (str === 'INACTIVE' || str === 'DISABLED') {
+      return { ...defaultObj, disabled: true };
+    }
+    // If it's a numeric string, parse it
+    const parsedInt = parseInt(str, 10);
+    if (!isNaN(parsedInt)) {
+      statusVal = parsedInt;
+    } else {
+      return defaultObj;
+    }
+  }
+
+  // If it's a number
+  if (typeof statusVal === 'number') {
+    return {
+      disabled: (statusVal & StatusFlag.Disabled) === StatusFlag.Disabled,
+      hidden: (statusVal & StatusFlag.Hidden) === StatusFlag.Hidden,
+      locked: (statusVal & StatusFlag.Locked) === StatusFlag.Locked,
+      completed: (statusVal & StatusFlag.Completed) === StatusFlag.Completed,
+    };
+  }
+
+  return defaultObj;
+};
+
+const normalizeStatus = (data: any): any => {
+  if (!data) return data;
+  if (Array.isArray(data)) {
+    return data.map(normalizeStatus);
+  }
+  if (typeof data === 'object') {
+    const copy = { ...data };
+    if (copy.status !== undefined) {
+      copy.status = toStatusObj(copy.status);
+    }
+    if (copy.subFunctions && Array.isArray(copy.subFunctions)) {
+      copy.subFunctions = copy.subFunctions.map(normalizeStatus);
+    }
+    return copy;
+  }
+  return data;
+};
+
 const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigChange?: () => void }> = ({ objectName, token, onConfigChange }) => {
-  const typeKey = objectName.toLowerCase() === 'functions' ? 'functions' : 'configs';
+  const typeKey = objectName.toLowerCase() === 'functions' 
+    ? 'functions' 
+    : objectName.toLowerCase() === 'groups'
+      ? 'groups'
+      : objectName.toLowerCase() === 'users'
+        ? 'users'
+        : 'configs';
   const schema = SCHEMAS[typeKey] || SCHEMAS.configs;
   
   const [items, setItems] = useState<any[]>([]);
@@ -90,11 +193,15 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
     try {
       const url = typeKey === 'functions' 
         ? `${API_BASE_URL}/api/v1/all_functions` 
-        : `${API_BASE_URL}/api/v1/configs`;
+        : typeKey === 'groups'
+          ? `${API_BASE_URL}/api/v1/groups`
+          : typeKey === 'users'
+            ? `${API_BASE_URL}/api/users`
+            : `${API_BASE_URL}/api/v1/configs`;
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setItems(res.data || []);
+      setItems(normalizeStatus(res.data) || []);
     } catch (err) {
       console.error('Failed to fetch items:', err);
       setItems(INITIAL_DATA[typeKey] || INITIAL_DATA.configs);
@@ -108,10 +215,17 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
   const handleOpenAdd = () => {
     const defaultForm: any = {};
     schema.fields.forEach(f => {
-      if (f.key === 'id' && typeKey === 'functions') {
+      if (f.key === 'id' && (typeKey === 'functions' || typeKey === 'groups')) {
         defaultForm[f.key] = generateUUID();
       } else if (f.key === 'pId' && typeKey === 'functions') {
         defaultForm[f.key] = '';
+      } else if (f.key === 'status') {
+        defaultForm[f.key] = {
+          disabled: false,
+          hidden: false,
+          locked: false,
+          completed: false
+        };
       } else {
         defaultForm[f.key] = f.type === 'number' ? 0 : f.type === 'select' ? f.selectOptions?.[0] : '';
       }
@@ -122,7 +236,16 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
   };
 
   const handleOpenEdit = (item: any) => {
-    setForm({ ...item });
+    setForm({ 
+      ...item, 
+      status: {
+        disabled: false,
+        hidden: false,
+        locked: false,
+        completed: false,
+        ...(item.status && typeof item.status === 'object' ? item.status : {})
+      }
+    });
     setIsEditing(true);
     setShowFormModal(true);
   };
@@ -133,7 +256,9 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
     try {
       const url = typeKey === 'functions'
         ? `${API_BASE_URL}/api/v1/functions/${item.id}`
-        : `${API_BASE_URL}/api/v1/configs?kind=${item.kind}&name=${item.name}&orderSn=${item.orderSn}`;
+        : typeKey === 'groups'
+          ? `${API_BASE_URL}/api/v1/groups/${item.id}`
+          : `${API_BASE_URL}/api/v1/configs?kind=${item.kind}&name=${item.name}&orderSn=${item.orderSn}`;
       
       await axios.delete(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -156,7 +281,9 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
     try {
       const url = typeKey === 'functions'
         ? `${API_BASE_URL}/api/v1/functions`
-        : `${API_BASE_URL}/api/v1/configs`;
+        : typeKey === 'groups'
+          ? `${API_BASE_URL}/api/v1/groups`
+          : `${API_BASE_URL}/api/v1/configs`;
       
       await axios.post(url, form, {
         headers: { Authorization: `Bearer ${token}` }
@@ -178,9 +305,11 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
     <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px solid var(--card-border)', padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h4 style={{ fontSize: '1.1rem', color: 'var(--accent-blue)', textTransform: 'capitalize' }}>{objectName} 維護清單</h4>
-        <button className="btn btn-primary" onClick={handleOpenAdd} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
-          + 新增資料
-        </button>
+        {typeKey !== 'users' && (
+          <button className="btn btn-primary" onClick={handleOpenAdd} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
+            + 新增資料
+          </button>
+        )}
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -190,7 +319,9 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
               {schema.fields.filter(f => !f.hideInTable).map(f => (
                 <th key={f.key} style={{ padding: '12px' }}>{f.label.split(' ')[0]}</th>
               ))}
-              <th style={{ padding: '12px', textAlign: 'right' }}>操作</th>
+              {typeKey !== 'users' && (
+                <th style={{ padding: '12px', textAlign: 'right' }}>操作</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -199,35 +330,90 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
                 {schema.fields.filter(f => !f.hideInTable).map(f => (
                   <td key={f.key} style={{ padding: '12px', color: f.key === 'status' ? undefined : 'var(--text-primary)' }}>
                     {f.key === 'status' ? (
-                      <span style={{ 
-                        padding: '2px 8px', 
-                        borderRadius: '4px', 
-                        fontSize: '0.75rem', 
-                        background: item[f.key] === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                        color: item[f.key] === 'ACTIVE' ? 'var(--accent-green)' : 'var(--accent-red)',
-                        fontWeight: 600
-                      }}>
-                        {item[f.key]}
-                      </span>
+                      (() => {
+                        const statusObj = item[f.key] || {};
+                        const badges = [];
+                        
+                        if (statusObj.disabled) {
+                          badges.push(
+                            <span key="disabled" style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '0.75rem', 
+                              background: 'rgba(239, 68, 68, 0.1)', 
+                              color: 'var(--accent-red)',
+                              fontWeight: 600
+                            }}>
+                              失效
+                            </span>
+                          );
+                        }
+                        if (statusObj.hidden) {
+                          badges.push(
+                            <span key="hidden" style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '0.75rem', 
+                              background: 'rgba(245, 158, 11, 0.1)', 
+                              color: '#f59e0b',
+                              fontWeight: 600
+                            }}>
+                              隱藏
+                            </span>
+                          );
+                        }
+                        if (statusObj.locked) {
+                          badges.push(
+                            <span key="locked" style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '0.75rem', 
+                              background: 'rgba(59, 130, 246, 0.1)', 
+                              color: 'var(--accent-blue)',
+                              fontWeight: 600
+                            }}>
+                              鎖定
+                            </span>
+                          );
+                        }
+                        if (statusObj.completed) {
+                          badges.push(
+                            <span key="completed" style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '0.75rem', 
+                              background: 'rgba(16, 185, 129, 0.1)', 
+                              color: 'var(--accent-green)',
+                              fontWeight: 600
+                            }}>
+                              完成
+                            </span>
+                          );
+                        }
+                        
+                        return <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>{badges}</div>;
+                      })()
                     ) : (
                       item[f.key] !== undefined && item[f.key] !== null ? String(item[f.key]) : '-'
                     )}
                   </td>
                 ))}
-                <td style={{ padding: '12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button 
-                    onClick={() => handleOpenEdit(item)}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginRight: '12px', fontSize: '0.85rem' }}
-                  >
-                    編輯
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(item)}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.85rem' }}
-                  >
-                    刪除
-                  </button>
-                </td>
+                {typeKey !== 'users' && (
+                  <td style={{ padding: '12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button 
+                      onClick={() => handleOpenEdit(item)}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginRight: '12px', fontSize: '0.85rem' }}
+                    >
+                      編輯
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(item)}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                      刪除
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -245,7 +431,42 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
               {schema.fields.filter(f => !f.hideInForm).map(f => (
                 <div key={f.key} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.label}</label>
-                  {f.key === 'pId' && typeKey === 'functions' ? (
+                  {f.key === 'status' ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={!!form.status?.disabled} 
+                          onChange={(e) => setForm({ ...form, status: { ...form.status, disabled: e.target.checked } })}
+                        />
+                        失效 (Disabled)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={!!form.status?.hidden} 
+                          onChange={(e) => setForm({ ...form, status: { ...form.status, hidden: e.target.checked } })}
+                        />
+                        隱藏 (Hidden)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={!!form.status?.locked} 
+                          onChange={(e) => setForm({ ...form, status: { ...form.status, locked: e.target.checked } })}
+                        />
+                        鎖定 (Locked)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={!!form.status?.completed} 
+                          onChange={(e) => setForm({ ...form, status: { ...form.status, completed: e.target.checked } })}
+                        />
+                        完成 (Completed)
+                      </label>
+                    </div>
+                  ) : f.key === 'pId' && typeKey === 'functions' ? (
                     <select 
                       className="form-control" 
                       value={form[f.key] || ''} 
@@ -253,7 +474,10 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
                       style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px' }}
                     >
                       <option value="">(無)</option>
-                      {items.filter(item => item.status === 'ACTIVE' && (!isEditing || item.id !== form.id)).map(opt => (
+                      {items.filter(item => {
+                        const isActive = item.status && typeof item.status === 'object' ? !item.status.disabled : item.status === 'ACTIVE';
+                        return isActive && (!isEditing || item.id !== form.id);
+                      }).map(opt => (
                         <option key={opt.id} value={opt.id}>
                           {opt.description} ({opt.name})
                         </option>
@@ -298,7 +522,398 @@ const CRUDTable: React.FC<{ objectName: string; token: string | null; onConfigCh
   );
 };
 
+const SettingAuthTable: React.FC<{ token: string | null }> = ({ token }) => {
+  const [groups, setGroups] = useState<any[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  
+  // Modal state
+  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Modal Left Block: Users
+  const [users, setUsers] = useState<any[]>([]);
+  const [checkedUserIds, setCheckedUserIds] = useState<{ [key: string]: boolean }>({});
+  const [userSearch, setUserSearch] = useState('');
+
+  // Modal Right Block: Functions
+  const [functions, setFunctions] = useState<any[]>([]);
+  const [checkedFunctionIds, setCheckedFunctionIds] = useState<{ [key: string]: boolean }>({});
+  const [functionSearch, setFunctionSearch] = useState('');
+
+  // Fetch groups
+  const fetchGroups = async () => {
+    if (!token) return;
+    setIsLoadingGroups(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/v1/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Filter out hidden groups
+      const normalized = normalizeStatus(res.data) || [];
+      const unhidden = normalized.filter((g: any) => !g.status?.hidden);
+      setGroups(unhidden);
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, [token]);
+
+  // Open modal for a specific group
+  const handleOpenMaintenance = async (group: any) => {
+    setSelectedGroup(group);
+    setCheckedUserIds({});
+    setCheckedFunctionIds({});
+    setUserSearch('');
+    setFunctionSearch('');
+    setShowModal(true);
+
+    if (!token) return;
+    try {
+      // 1. Fetch all users
+      const usersRes = await axios.get(`${API_BASE_URL}/api/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUsers(normalizeStatus(usersRes.data) || []);
+
+      // 2. Fetch all functions
+      const funcsRes = await axios.get(`${API_BASE_URL}/api/v1/all_functions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFunctions(normalizeStatus(funcsRes.data) || []);
+
+      // 3. Fetch existing GROUP_USER maps for this group
+      const userMapsRes = await axios.get(`${API_BASE_URL}/api/v1/maps?kind=GROUP_USER&map_a_id=${group.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userMaps = userMapsRes.data || [];
+      const userChecked: { [key: string]: boolean } = {};
+      userMaps.forEach((m: any) => {
+        userChecked[m.mapBID] = true;
+      });
+      setCheckedUserIds(userChecked);
+
+      // 4. Fetch existing GROUP_FUNCTION maps for this group
+      const funcMapsRes = await axios.get(`${API_BASE_URL}/api/v1/maps?kind=GROUP_FUNCTION&map_a_id=${group.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const funcMaps = funcMapsRes.data || [];
+      const funcChecked: { [key: string]: boolean } = {};
+      funcMaps.forEach((m: any) => {
+        funcChecked[m.mapBID] = true;
+      });
+      setCheckedFunctionIds(funcChecked);
+    } catch (err) {
+      console.error('Failed to fetch relation data:', err);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !selectedGroup) return;
+
+    setIsSaving(true);
+    try {
+      // Get checked lists
+      const mapBUserIds = Object.keys(checkedUserIds).filter(id => checkedUserIds[id]);
+      const mapBFuncIds = Object.keys(checkedFunctionIds).filter(id => checkedFunctionIds[id]);
+
+      // Call batch updates in parallel
+      await Promise.all([
+        axios.post(
+          `${API_BASE_URL}/api/v1/maps/batch`,
+          {
+            mapAID: selectedGroup.id,
+            kind: 'GROUP_USER',
+            mapBIDs: mapBUserIds
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+        axios.post(
+          `${API_BASE_URL}/api/v1/maps/batch`,
+          {
+            mapAID: selectedGroup.id,
+            kind: 'GROUP_FUNCTION',
+            mapBIDs: mapBFuncIds
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+      ]);
+
+      alert('維護成功！');
+      setShowModal(false);
+    } catch (err) {
+      console.error('Failed to save batch maps:', err);
+      alert('維護失敗，請重試。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Filtered lists for rendering in modal
+  const filteredUsers = users.filter((u: any) => {
+    const q = userSearch.toLowerCase();
+    return (
+      (u.nickname && u.nickname.toLowerCase().includes(q)) ||
+      (u.realName && u.realName.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredFunctions = functions.filter((f: any) => {
+    const q = functionSearch.toLowerCase();
+    return (
+      (f.name && f.name.toLowerCase().includes(q)) ||
+      (f.description && f.description.toLowerCase().includes(q))
+    );
+  });
+
+  const isAllFilteredUsersChecked = filteredUsers.length > 0 && filteredUsers.every(u => !!checkedUserIds[u.id]);
+  const handleToggleAllUsers = (checked: boolean) => {
+    const updated = { ...checkedUserIds };
+    filteredUsers.forEach(u => {
+      updated[u.id] = checked;
+    });
+    setCheckedUserIds(updated);
+  };
+
+  const isAllFilteredFunctionsChecked = filteredFunctions.length > 0 && filteredFunctions.every(f => !!checkedFunctionIds[f.id]);
+  const handleToggleAllFunctions = (checked: boolean) => {
+    const updated = { ...checkedFunctionIds };
+    filteredFunctions.forEach(f => {
+      updated[f.id] = checked;
+    });
+    setCheckedFunctionIds(updated);
+  };
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px solid var(--card-border)', padding: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h4 style={{ fontSize: '1.1rem', color: 'var(--accent-blue)' }}>權限群組維護清單 (未隱藏)</h4>
+      </div>
+
+      {isLoadingGroups ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+          <div className="spinner" style={{ width: '24px', height: '24px' }}></div>
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>
+                <th style={{ padding: '12px' }}>群組名稱</th>
+                <th style={{ padding: '12px' }}>群組描述</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group) => (
+                <tr key={group.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <td style={{ padding: '12px', color: 'var(--text-primary)' }}>{group.name}</td>
+                  <td style={{ padding: '12px', color: 'var(--text-primary)' }}>{group.description || '-'}</td>
+                  <td style={{ padding: '12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button 
+                      onClick={() => handleOpenMaintenance(group)}
+                      className="btn btn-outline"
+                      style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}
+                    >
+                      成員及權限維護
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {groups.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>無任何未隱藏的群組</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && selectedGroup && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: '1000px', padding: '24px', position: 'relative' }}>
+            <button 
+              className="modal-close-btn" 
+              onClick={() => setShowModal(false)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+              }}
+            >
+              &times;
+            </button>
+
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '20px', color: 'var(--text-primary)', textAlign: 'center', fontWeight: 'bold' }}>
+              {selectedGroup.name} - 成員及權限維護
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+              {/* Left Column: Group Users */}
+              <div style={{ display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+                <h5 style={{ fontSize: '0.95rem', color: 'var(--accent-blue)', marginBottom: '12px', fontWeight: 600 }}>群組下轄人員</h5>
+                <input 
+                  type="text" 
+                  placeholder="搜尋人員 (暱稱/姓名/Email)..." 
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--card-border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    marginBottom: '12px',
+                  }}
+                />
+                <div style={{ overflowY: 'auto', maxHeight: '350px', minHeight: '350px', paddingRight: '4px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '8px', width: '40px', textAlign: 'center' }}>
+                          <input 
+                            type="checkbox"
+                            checked={isAllFilteredUsersChecked}
+                            onChange={(e) => handleToggleAllUsers(e.target.checked)}
+                            title="全選 / 取消全選"
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </th>
+                        <th style={{ padding: '8px' }}>暱稱</th>
+                        <th style={{ padding: '8px' }}>姓名</th>
+                        <th style={{ padding: '8px' }}>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => (
+                        <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <input 
+                              type="checkbox"
+                              checked={!!checkedUserIds[u.id]}
+                              onChange={(e) => setCheckedUserIds({ ...checkedUserIds, [u.id]: e.target.checked })}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', color: 'var(--text-primary)' }}>{u.nickname}</td>
+                          <td style={{ padding: '8px', color: 'var(--text-secondary)' }}>{u.realName || '-'}</td>
+                          <td style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.8rem', wordBreak: 'break-all' }}>{u.email}</td>
+                        </tr>
+                      ))}
+                      {filteredUsers.length === 0 && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>無匹配的人員</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Right Column: Group Functions */}
+              <div style={{ display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+                <h5 style={{ fontSize: '0.95rem', color: 'var(--accent-purple)', marginBottom: '12px', fontWeight: 600 }}>群組可權限功能</h5>
+                <input 
+                  type="text" 
+                  placeholder="搜尋功能 (名稱/描述)..." 
+                  value={functionSearch}
+                  onChange={(e) => setFunctionSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--card-border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    marginBottom: '12px',
+                  }}
+                />
+                <div style={{ overflowY: 'auto', maxHeight: '350px', minHeight: '350px', paddingRight: '4px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '8px', width: '40px', textAlign: 'center' }}>
+                          <input 
+                            type="checkbox"
+                            checked={isAllFilteredFunctionsChecked}
+                            onChange={(e) => handleToggleAllFunctions(e.target.checked)}
+                            title="全選 / 取消全選"
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </th>
+                        <th style={{ padding: '8px' }}>中文描述</th>
+                        <th style={{ padding: '8px' }}>功能名稱 (英文)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFunctions.map((f) => (
+                        <tr key={f.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <input 
+                              type="checkbox"
+                              checked={!!checkedFunctionIds[f.id]}
+                              onChange={(e) => setCheckedFunctionIds({ ...checkedFunctionIds, [f.id]: e.target.checked })}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', color: 'var(--text-primary)' }}>{f.description}</td>
+                          <td style={{ padding: '8px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{f.name}</td>
+                        </tr>
+                      ))}
+                      {filteredFunctions.length === 0 && (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>無匹配的功能</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => setShowModal(false)}
+                disabled={isSaving}
+              >
+                取消
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{ minWidth: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {isSaving ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid transparent', borderTopColor: 'currentColor' }}></div> : '儲存變更'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user')
@@ -311,6 +926,9 @@ function App() {
   
   // Modals state
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
+  const userDropdownRef = useRef<HTMLDivElement>(null)
+
   const [profileForm, setProfileForm] = useState({
     nickname: '',
     realName: '',
@@ -320,6 +938,7 @@ function App() {
   })
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [selectedSearchUser, setSelectedSearchUser] = useState<SearchUser | null>(null)
   const [homeFunction, setHomeFunction] = useState<any>({
     name: 'Home',
     description: '首頁',
@@ -348,6 +967,24 @@ function App() {
       axios.interceptors.response.eject(interceptor)
     }
   }, [])
+
+  // Handle clicking outside user avatar dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setIsUserDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Close user dropdown when route changes
+  useEffect(() => {
+    setIsUserDropdownOpen(false)
+  }, [location])
 
   // Check URL callback routing on page load
   useEffect(() => {
@@ -436,7 +1073,7 @@ function App() {
       return
     }
 
-    const path = window.location.pathname
+    const path = location.pathname
     // Skip OAuth callback path
     if (path.startsWith('/auth/callback')) {
       return
@@ -466,7 +1103,7 @@ function App() {
         }
       })
       const funcData = response.data
-      setCurrentFunction(funcData)
+      setCurrentFunction(normalizeStatus(funcData))
     } catch (err) {
       console.error('Route validation failed:', err)
       setIs404(true)
@@ -478,8 +1115,8 @@ function App() {
 
   // Dynamic function routing verification
   useEffect(() => {
-    validateRoute()
-  }, [token, user])
+    validateRoute(token, user)
+  }, [location.pathname, token, user])
 
   // Fetch home function details once logged in
   useEffect(() => {
@@ -491,7 +1128,7 @@ function App() {
             Authorization: `Bearer ${token}`
           }
         })
-        setHomeFunction(response.data)
+        setHomeFunction(normalizeStatus(response.data))
       } catch (err) {
         console.error('Failed to fetch home function:', err)
       }
@@ -571,7 +1208,11 @@ function App() {
               </div>
             )}
             {func.type === 'SETT' && (
-              <CRUDTable objectName={func.name.split('_').pop() || 'Config'} token={token} onConfigChange={fetchSystemName} />
+              func.name === 'Setting_Auth' ? (
+                <SettingAuthTable token={token} />
+              ) : (
+                <CRUDTable objectName={func.name.split('_').pop() || 'Config'} token={token} onConfigChange={fetchSystemName} />
+              )
             )}
           </div>
         )}
@@ -631,8 +1272,7 @@ function App() {
   }
 
   const navigateTo = (path: string) => {
-    window.history.pushState({}, document.title, path)
-    validateRoute(token, user)
+    navigate(path)
   }
 
   const logout = () => {
@@ -762,38 +1402,107 @@ function App() {
         </div>
         {user && (
           <div className="user-nav-profile">
-            <div 
-              className="user-nav-trigger" 
-              onClick={() => navigateTo('/User')}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                cursor: 'pointer',
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-            >
-              {user.avatarUrl ? (
-                <img className="avatar" src={user.avatarUrl} alt={user.nickname} />
-              ) : (
-                <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+            {/* 1. Collapsible Search Box / Magnifying Glass Icon */}
+            <AutoCompleteSearch
+              token={token}
+              apiBaseUrl={API_BASE_URL}
+              onNavigate={navigateTo}
+              onSelectUser={setSelectedSearchUser}
+            />
+
+            {/* 2. Notification Bell Icon */}
+            <NotificationBell
+              token={token}
+              apiBaseUrl={API_BASE_URL}
+              onNavigate={navigateTo}
+            />
+
+            {/* 3. User Avatar and Popover (far right) */}
+            <div className="relative" ref={userDropdownRef}>
+              <div 
+                className="user-nav-trigger" 
+                onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {user.avatarUrl ? (
+                  <img className="avatar" src={user.avatarUrl} alt={user.nickname} style={{ margin: 0 }} />
+                ) : (
+                  <div className="avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: 0 }}>
+                    {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+              </div>
+
+              {isUserDropdownOpen && (
+                <div 
+                  className="absolute right-0 mt-3 origin-top-right rounded-2xl border border-slate-800/80 bg-slate-900/90 backdrop-blur-md shadow-2xl z-50 overflow-hidden"
+                  style={{
+                    width: '320px',
+                    padding: '32px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    animation: 'scaleIn 0.2s ease-out'
+                  }}
+                >
+                  {/* User Header */}
+                  <div className="flex flex-col items-center gap-2 pb-5 mb-2 border-b border-slate-800/60">
+                    {user.avatarUrl ? (
+                      <img className="w-12 h-12 rounded-full border border-white/10" src={user.avatarUrl} alt={user.nickname} />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center font-bold text-lg text-white">
+                        {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
+                    <span className="text-sm font-semibold text-slate-100">{user.nickname}</span>
+                    <span className="text-xs text-slate-400 truncate max-w-full">{user.email || ''}</span>
+                  </div>
+
+                  {/* Options */}
+                  <button
+                    onClick={() => {
+                      setIsUserDropdownOpen(false)
+                      navigateTo('/User')
+                    }}
+                    className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
+                  >
+                    <User className="h-4 w-4 text-slate-400" />
+                    個人檔案
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setIsUserDropdownOpen(false)
+                      navigateTo('/Setting')
+                    }}
+                    className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4 text-slate-400" />
+                    設定
+                  </button>
+
+                  <hr className="border-slate-800/50 my-1" />
+
+                  <button
+                    onClick={() => {
+                      setIsUserDropdownOpen(false)
+                      logout()
+                    }}
+                    className="flex items-center gap-3 px-5 py-3 text-sm text-rose-450 hover:bg-rose-955/20 hover:text-rose-350 rounded-lg transition-colors text-left w-full cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-400" />
+                    登出
+                  </button>
                 </div>
               )}
-              <span className="nav-nickname">{user.nickname}</span>
             </div>
-             <button 
-              className="btn btn-outline" 
-              onClick={() => navigateTo('/Setting')} 
-              style={{ padding: '8px 16px', fontSize: '0.875rem', marginRight: '8px' }}
-            >
-              設定
-            </button>
-            <button className="btn btn-outline" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-              登出
-            </button>
           </div>
         )}
       </header>
@@ -1056,6 +1765,49 @@ function App() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {selectedSearchUser && (
+        <div className="modal-overlay" style={{ zIndex: 1300 }} onClick={() => setSelectedSearchUser(null)}>
+          <div 
+            className="glass-panel modal-content" 
+            style={{ width: '90%', maxWidth: '400px', padding: '28px', gap: '20px', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <div className="avatar" style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.75rem', background: 'var(--accent-blue)', color: 'white', marginBottom: '12px' }}>
+                {selectedSearchUser.realName ? selectedSearchUser.realName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <h2 className="modal-title" style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                使用者詳細資訊
+              </h2>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>姓名</span>
+                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSearchUser.realName}</span>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>電子郵件</span>
+                <span style={{ fontSize: '0.95rem', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{selectedSearchUser.email}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={() => setSelectedSearchUser(null)}
+                style={{ width: '100%', padding: '10px 20px', fontSize: '0.9rem' }}
+              >
+                關閉
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

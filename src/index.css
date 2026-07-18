@@ -1,3 +1,9 @@
+@import "tailwindcss";
+
+html {
+  font-size: 18px;
+}
+
 :root {
   --bg-primary: #0a0e17;
   --bg-secondary: #131924;
@@ -322,8 +328,8 @@ textarea.form-control {
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: 2px solid var(--card-border);
   object-fit: cover;
