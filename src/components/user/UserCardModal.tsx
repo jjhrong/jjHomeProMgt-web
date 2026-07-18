@@ -168,6 +168,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   const coinTitle = matchAssetTitle(configs, 'COIN_J', coinBalance)
   const expTitle = matchAssetTitle(configs, 'EXP_PERSONAL', expBalance)
   const dayTitle = matchAssetTitle(configs, 'EXP_DAY', dayBalance)
+  const friendTitle = matchAssetTitle(configs, 'FRIEND_COUNT', friendCount)
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
@@ -303,9 +304,14 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           <div className="col-span-1 p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between min-h-[90px] transition-all duration-300 hover:bg-white/8">
             <div className="flex justify-between items-start text-xs text-slate-400">
               <span className="font-medium">好友數</span>
+              {friendTitle && (
+                <span className="text-[11px] font-mono text-slate-350 bg-white/5 px-2 py-0.5 rounded-md">
+                  {friendCount.toLocaleString()}
+                </span>
+              )}
             </div>
             <span className="text-lg font-bold text-blue-300 mt-2">
-              {friendCount.toLocaleString()}
+              {friendTitle || friendCount.toLocaleString()}
             </span>
           </div>
 
