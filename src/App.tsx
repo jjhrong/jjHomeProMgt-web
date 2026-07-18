@@ -5,6 +5,8 @@ import { AutoCompleteSearch } from './components/AutoCompleteSearch'
 import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
+import { UserCardModal } from './components/user/UserCardModal'
+import type { AppConfig } from './utils/titleMatcher'
 import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
 
 const getApiBaseUrl = () => {
@@ -943,6 +945,7 @@ function App() {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [selectedSearchUser, setSelectedSearchUser] = useState<SearchUser | null>(null)
+  const [configsCache, setConfigsCache] = useState<AppConfig[]>([])
   const [homeFunction, setHomeFunction] = useState<any>({
     name: 'Home',
     description: '首頁',
@@ -973,6 +976,27 @@ function App() {
       axios.interceptors.response.eject(interceptor)
     }
   }, [])
+
+  // Fetch configurations cache on login / mount
+  useEffect(() => {
+    const fetchConfigs = async () => {
+      if (!token) {
+        setConfigsCache([])
+        return
+      }
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/v1/configs`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (Array.isArray(res.data)) {
+          setConfigsCache(res.data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch configurations:', err)
+      }
+    }
+    fetchConfigs()
+  }, [token])
 
   // Handle clicking outside user avatar dropdown to close it
   useEffect(() => {
@@ -1836,47 +1860,21 @@ function App() {
         </div>
       )}
 
+
       {/* User Detail Modal */}
       {selectedSearchUser && (
-        <div className="modal-overlay" style={{ zIndex: 1300 }} onClick={() => setSelectedSearchUser(null)}>
-          <div 
-            className="glass-panel modal-content" 
-            style={{ width: '90%', maxWidth: '400px', padding: '28px', gap: '20px', display: 'flex', flexDirection: 'column' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <div className="avatar" style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.75rem', background: 'var(--accent-blue)', color: 'white', marginBottom: '12px' }}>
-                {selectedSearchUser.realName ? selectedSearchUser.realName.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <h2 className="modal-title" style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                使用者詳細資訊
-              </h2>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>姓名</span>
-                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSearchUser.realName}</span>
-              </div>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>電子郵件</span>
-                <span style={{ fontSize: '0.95rem', color: 'var(--text-primary)', wordBreak: 'break-all' }}>{selectedSearchUser.email}</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={() => setSelectedSearchUser(null)}
-                style={{ width: '100%', padding: '10px 20px', fontSize: '0.9rem' }}
-              >
-                關閉
-              </button>
-            </div>
-          </div>
-        </div>
+        <UserCardModal
+          userId={selectedSearchUser.id}
+          currentUserId={user ? user.id : ''}
+          token={token}
+          apiBaseUrl={API_BASE_URL}
+          configs={configsCache}
+          onClose={() => setSelectedSearchUser(null)}
+          onEdit={() => {
+            setSelectedSearchUser(null)
+            setShowProfileModal(true)
+          }}
+        />
       )}
     </>
   )
