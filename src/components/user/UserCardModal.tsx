@@ -99,19 +99,13 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
     }
   }
 
-  const getBalance = (code: string): number => {
-    if (!cardDetails || !cardDetails.balances) return 0
-    const balanceItem = cardDetails.balances.find((b) => b.category_code === code)
-    return balanceItem ? balanceItem.balance : 0
-  }
-
   if (isLoading) {
     return (
-      <div 
+      <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
         onClick={onClose}
       >
-        <div 
+        <div
           className="relative w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 text-slate-200 shadow-2xl backdrop-blur-xl p-8 flex flex-col items-center justify-center min-h-[300px]"
           onClick={(e) => e.stopPropagation()}
         >
@@ -124,23 +118,23 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
 
   if (error && !cardDetails) {
     return (
-      <div 
+      <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
         onClick={onClose}
       >
-        <div 
+        <div
           className="relative w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 text-slate-200 shadow-2xl backdrop-blur-xl p-8 flex flex-col items-center justify-center min-h-[300px]"
           onClick={(e) => e.stopPropagation()}
         >
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer p-1.5 rounded-full hover:bg-white/5"
           >
             <X className="w-5 h-5" />
           </button>
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
           <p className="text-red-400 text-sm font-semibold mb-6 text-center">{error}</p>
-          <button 
+          <button
             onClick={fetchUserCard}
             className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full text-sm font-semibold shadow-md transition-colors cursor-pointer"
           >
@@ -156,24 +150,17 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   const isSelf = currentUserId === cardDetails.id
   const isFriend = cardDetails.friend_status === 8
   const isPending = cardDetails.friend_status === 0
-  const winRate = cardDetails.win_rate || 0
-
-  // Balances
-  const coinBalance = getBalance('COIN_J')
-  const expBalance = getBalance('EXP_PERSONAL')
-  const dayBalance = getBalance('EXP_DAY')
-  const friendCount = getBalance('FRIEND_COUNT')
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
-      <div 
+      <div
         className="glass-panel modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{ position: 'relative' }}
       >
         {/* Close Button */}
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer p-1.5 rounded-full hover:bg-white/5"
           aria-label="Close modal"
         >
@@ -185,10 +172,10 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           {/* Avatar */}
           <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-violet-500/50 bg-slate-950/50 flex-shrink-0 flex items-center justify-center text-2xl font-bold text-violet-400 shadow-inner">
             {cardDetails.avatar_url ? (
-              <img 
-                src={cardDetails.avatar_url} 
-                alt={cardDetails.nickname} 
-                className="w-full h-full object-cover" 
+              <img
+                src={cardDetails.avatar_url}
+                alt={cardDetails.nickname}
+                className="w-full h-full object-cover"
               />
             ) : (
               cardDetails.nickname ? cardDetails.nickname.charAt(0).toUpperCase() : 'U'
@@ -212,8 +199,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           {/* Action button */}
           <div className="ml-auto flex-shrink-0">
             {isSelf ? (
-              <button 
-                onClick={onEdit} 
+              <button
+                onClick={onEdit}
                 className="px-5 py-2.5 text-sm font-bold rounded-full border border-violet-500/35 bg-violet-600/10 text-violet-300 hover:bg-violet-600/30 hover:border-violet-500/70 transition-all duration-300 cursor-pointer shadow-md"
               >
                 編輯資訊
@@ -227,7 +214,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
                 已申請
               </span>
             ) : (
-              <button 
+              <button
                 onClick={handleApplyFriend}
                 disabled={isApplying}
                 className="px-5 py-2.5 text-sm font-bold rounded-full bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-blue-600/20 active:scale-95"
