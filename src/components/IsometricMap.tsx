@@ -639,6 +639,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           // Col 1: 第2張 草地1 (Grass 1)
           const groundSpriteCol = tile.isDirt ? 0 : 1
 
+          // 10% deterministic chance for natural tree decorations on meadow grass:
+          const hasTree =
+            !tile.isDirt &&
+            !tile.building &&
+            ((tile.gridX * 37 + tile.gridY * 17 + 13) % 100) < 10
+
+          const treeSpriteCol = (tile.gridX * 19 + tile.gridY * 23) % 2 === 0 ? 3 : 4
+
           const clipId = `tile-clip-${tile.gridX}-${tile.gridY}`
 
           return (
@@ -671,6 +679,26 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     backgroundRepeat: 'no-repeat',
                     pointerEvents: 'none',
                     opacity: isSelected ? 0.75 : 1.0,
+                  }}
+                />
+              )}
+
+              {/* 10% 機率渲染自然樹木造景 (草地上 Col 3 樹木1 / Col 4 樹木2) */}
+              {hasTree && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: '-4px',
+                    transform: 'translate(-50%, 0)',
+                    width: '80px',
+                    height: '95px',
+                    backgroundImage: 'url(/buildings_1.webp)',
+                    backgroundSize: '1000% auto',
+                    backgroundPosition: `${(treeSpriteCol / 9) * 100}% 0%`,
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    zIndex: depthIndex + 1,
                   }}
                 />
               )}
