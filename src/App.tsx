@@ -27,6 +27,7 @@ interface User {
   status: string
   avatarUrl: string
   firstLogin: boolean
+  role?: string
 }
 
 const SCHEMAS: { 
@@ -1257,6 +1258,8 @@ function App() {
                   token={token}
                   apiBaseUrl={API_BASE_URL}
                   onNavigate={navigateTo}
+                  userRole={user?.role}
+                  onRefreshMap={() => fetchHomeFunction(token)}
                 />
               </div>
             )}

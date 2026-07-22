@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
-import { Compass, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react'
+import {
+  Compass,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ShieldAlert,
+  ZoomIn,
+  ZoomOut,
+  Building,
+  Building2,
+  ChevronDown,
+  Plus,
+  X,
+  Hammer,
+} from 'lucide-react'
 import { BuildingSpriteButton } from './BuildingSpriteButton'
 import { FogOverlay } from './FogOverlay'
 import type { FogState } from './FogOverlay'
@@ -13,6 +28,7 @@ interface SubFunction {
   type: string
   description: string
   status: any
+  hasPermission?: boolean
 }
 
 interface HomeFunction {
@@ -30,6 +46,8 @@ interface IsometricMapProps {
   token: string | null
   apiBaseUrl: string
   onNavigate: (path: string) => void
+  userRole?: string
+  onRefreshMap?: () => void
 }
 
 interface TileCoord {
@@ -100,8 +118,57 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   token,
   apiBaseUrl,
   onNavigate,
+  userRole,
+  onRefreshMap,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null)
+
+  // Quick Navigation Dropdown state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Phase 1 Modal State (New Building Parameters)
+  const [isPhase1ModalOpen, setIsPhase1ModalOpen] = useState(false)
+  const [newBuildingParams, setNewBuildingParams] = useState({
+    name: '',
+    description: '',
+    type: 'PAGE',
+  })
+  const [phase1Error, setPhase1Error] = useState('')
+
+  // Phase 2 Placement Mode State
+  const [isPlacementMode, setIsPlacementMode] = useState(false)
+  const [placementData, setPlacementData] = useState<{
+    name: string
+    description: string
+    type: string
+  } | null>(null)
+  const [hoverGrid, setHoverGrid] = useState<{ gridX: number; gridY: number } | null>(null)
+  const [lockedGrid, setLockedGrid] = useState<{ gridX: number; gridY: number } | null>(null)
+  const [isBuildingSubmitting, setIsBuildingSubmitting] = useState(false)
+
+  // User privileges for creating buildings
+  const canCreateBuilding =
+    userRole === 'SYS_Admin' ||
+    (homeFunction.subFunctions &&
+      homeFunction.subFunctions.some((sub) => (sub as any).hasPermission !== false))
+
+  // Sub-functions that the user has permission for (for quick navigation dropdown)
+  const permittedSubFunctions = useMemo(() => {
+    if (!homeFunction.subFunctions) return []
+    return homeFunction.subFunctions.filter((sub) => (sub as any).hasPermission !== false)
+  }, [homeFunction.subFunctions])
   
   // Dynamic Map Dimensions (clamped 10~30)
   const width = Math.min(Math.max(homeFunction.width || 10, 10), 30)
@@ -458,10 +525,103 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     setIsDragging(false)
   }
 
-  // Click tile -> Select tile without panning map
+  const handleOpenPhase1 = () => {
+    setIsDropdownOpen(false)
+    setNewBuildingParams({ name: '', description: '', type: 'PAGE' })
+    setPhase1Error('')
+    setIsPhase1ModalOpen(true)
+  }
+
+  const handlePhase1Next = () => {
+    const name = newBuildingParams.name.trim()
+    const description = newBuildingParams.description.trim()
+    const funcType = newBuildingParams.type.toUpperCase()
+
+    if (!name) {
+      setPhase1Error('請輸入功能英文名稱 (Name)。')
+      return
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      setPhase1Error('功能名稱必須為英文、數字、底線或連字號。')
+      return
+    }
+    if (!description) {
+      setPhase1Error('請輸入中文描述 (Description)。')
+      return
+    }
+    if (funcType === 'HOME') {
+      setPhase1Error('嚴禁使用 HOME 類型作為建築子功能。')
+      return
+    }
+
+    setIsPhase1ModalOpen(false)
+    setPlacementData({ name, description, type: funcType })
+    setIsPlacementMode(true)
+    setLockedGrid(null)
+    setHoverGrid(null)
+  }
+
+  const handleConfirmPlacement = async () => {
+    if (!lockedGrid || !placementData) return
+    setIsBuildingSubmitting(true)
+    try {
+      await axios.post(
+        `${apiBaseUrl}/api/v1/functions/building`,
+        {
+          name: placementData.name,
+          description: placementData.description,
+          type: placementData.type,
+          p_id: homeFunction.id,
+          mapX: lockedGrid.gridX,
+          mapY: lockedGrid.gridY,
+          spriteCol: 6,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+
+      setIsBuildingSubmitting(false)
+      setIsPlacementMode(false)
+      setLockedGrid(null)
+      setPlacementData(null)
+
+      // Trigger fog transition refresh
+      setFogState('closing')
+      setTimeout(() => {
+        if (onRefreshMap) {
+          onRefreshMap()
+        }
+        setFogState('opening')
+      }, 700)
+    } catch (err: any) {
+      console.error('Failed to create building:', err)
+      setIsBuildingSubmitting(false)
+      const msg =
+        err.response?.data?.error || '新增建築失敗，請檢查輸入參數或系統權限。'
+      alert(msg)
+    }
+  }
+
+  // Click tile -> Select tile without panning map or lock placement coordinate
   const handleTileClick = (tile: TileCoord) => {
     if (isMoved) return
     setSelectedTile({ gridX: tile.gridX, gridY: tile.gridY })
+
+    if (isPlacementMode) {
+      if (tile.building) {
+        alert('該座標已有建築物，請選擇其他空地網格！')
+        return
+      }
+      setLockedGrid({ gridX: tile.gridX, gridY: tile.gridY })
+    }
+  }
+
+  // Tile hover in Placement Mode
+  const handleTileMouseEnter = (tile: TileCoord) => {
+    if (isPlacementMode && !lockedGrid) {
+      setHoverGrid({ gridX: tile.gridX, gridY: tile.gridY })
+    }
   }
 
   // Click building tile -> Directly navigate to feature page if permitted, else show no-permission warning
@@ -584,7 +744,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         cursor: isDragging ? 'grabbing' : 'grab',
       }}
     >
-      {/* Header HUD Overlay */}
+      {/* Header HUD Overlay & Quick Navigation Dropdown */}
       <div
         style={{
           position: 'absolute',
@@ -594,18 +754,249 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          padding: '10px 20px',
-          borderRadius: '16px',
-          background: 'rgba(12, 20, 17, 0.82)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(163, 198, 175, 0.18)',
         }}
       >
-        <Compass className="w-5 h-5 text-emerald-400 animate-spin-slow" />
-        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}>
-          {homeFunction.description || homeFunction.name}
+        {/* Title Badge */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 18px',
+            borderRadius: '16px',
+            background: 'rgba(12, 20, 17, 0.85)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(163, 198, 175, 0.25)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <Compass className="w-5 h-5 text-emerald-400 animate-spin-slow" />
+          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}>
+            {homeFunction.description || homeFunction.name}
+          </span>
+        </div>
+
+        {/* Quick Navigation Dropdown Button */}
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setIsDropdownOpen((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, rgba(31, 58, 44, 0.9) 0%, rgba(17, 34, 26, 0.9) 100%)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(110, 191, 139, 0.4)',
+              color: '#ffffff',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Building2 className="w-4 h-4 text-emerald-300" />
+            <span>直接前往...</span>
+            <ChevronDown className="w-4 h-4 text-emerald-400 opacity-80" />
+          </button>
+
+          {/* Dropdown Menu Popup */}
+          {isDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: 0,
+                minWidth: '220px',
+                borderRadius: '16px',
+                background: 'rgba(15, 25, 20, 0.95)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(163, 198, 175, 0.3)',
+                boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65)',
+                padding: '8px',
+                zIndex: 200,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>
+                快捷區域選單
+              </div>
+
+              {permittedSubFunctions.map((sub) => (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(false)
+                    onNavigate(`/${sub.name}`)
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#e2e8f0',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  className="hover:bg-emerald-950/60 hover:text-emerald-300"
+                >
+                  <Building className="w-4 h-4 text-emerald-400" />
+                  <span>{sub.description || sub.name}</span>
+                </button>
+              ))}
+
+              {permittedSubFunctions.length === 0 && (
+                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#64748b' }}>
+                  尚無可用快捷建築
+                </div>
+              )}
+
+              {/* Admin / Manager Special Option */}
+              {canCreateBuilding && (
+                <>
+                  <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />
+                  <button
+                    type="button"
+                    onClick={handleOpenPhase1}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '10px',
+                      border: '1px dashed rgba(110, 191, 139, 0.5)',
+                      background: 'rgba(52, 120, 78, 0.25)',
+                      color: '#6ebf8b',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    className="hover:bg-emerald-800/40 hover:text-emerald-200"
+                  >
+                    <Plus className="w-4 h-4 text-emerald-400" />
+                    <span>+ 新增子功能（建造建築）</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Phase 2 Placement Mode HUD Notification Banner */}
+      {isPlacementMode && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 300,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '12px 24px',
+            borderRadius: '20px',
+            background: lockedGrid
+              ? 'rgba(30, 20, 10, 0.92)'
+              : 'rgba(12, 30, 20, 0.92)',
+            backdropFilter: 'blur(16px)',
+            border: lockedGrid
+              ? '1px solid rgba(250, 204, 21, 0.6)'
+              : '1px solid rgba(110, 191, 139, 0.6)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
+            color: '#ffffff',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+          }}
+        >
+          <Hammer className="w-5 h-5 text-amber-400 animate-bounce" />
+          <div>
+            {lockedGrid ? (
+              <span>
+                已選定座標 <strong style={{ color: '#facc15' }}>({lockedGrid.gridX}, {lockedGrid.gridY})</strong>，確認建造「{placementData?.description}」？
+              </span>
+            ) : (
+              <span>
+                【建築擺放模式】請在等角網格空地上點擊，選擇「<strong>{placementData?.description}</strong>」的建造位置
+              </span>
+            )}
+          </div>
+
+          {lockedGrid ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setLockedGrid(null)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#e2e8f0',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
+                取消重新選擇
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPlacement}
+                disabled={isBuildingSubmitting}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
+                }}
+              >
+                {isBuildingSubmitting ? '建造中...' : '確定建造'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsPlacementMode(false)
+                setPlacementData(null)
+                setLockedGrid(null)
+              }}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '10px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#fca5a5',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+              }}
+            >
+              退出擺放
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Isometric Grid Canvas */}
       <div
@@ -626,15 +1017,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             selectedTile?.gridX === tile.gridX && selectedTile?.gridY === tile.gridY
           const depthIndex = (tile.gridX + tile.gridY) * 10 + tile.gridX
 
-          // Terrain coloring & texture mapping for Row 0 sprites
-          // Dirt (泥土地): Building feature tiles and 1-ring neighbor tiles
-          // Grass 1 (草地1) & Grass 2 (草地2): Varied natural meadow grass
-          let sideLeftFill = '#2d5e35'
-          let sideRightFill = '#1c3e23'
-          let topFaceFill = '#3e7d48'
-          let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
-          // 10% deterministic chance for natural tree decorations on meadow grass:
           const hasTree =
             !tile.isDirt &&
             !tile.building &&
@@ -652,12 +1035,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             ? treeSpriteCol
             : 1
 
-          const clipId = `tile-clip-${tile.gridX}-${tile.gridY}`
-
           return (
             <div
               key={`${tile.gridX}-${tile.gridY}`}
               onClick={() => handleTileClick(tile)}
+              onMouseEnter={() => handleTileMouseEnter(tile)}
               style={{
                 position: 'absolute',
                 left: `${tile.isoX - TILE_WIDTH / 2}px`,
@@ -687,6 +1069,51 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   }}
                 />
               )}
+
+              {/* Phase 2 Placement Mode Cottage Preview (Col 6 矮房貼圖動態預覽) */}
+              {isPlacementMode &&
+                ((lockedGrid?.gridX === tile.gridX && lockedGrid?.gridY === tile.gridY) ||
+                  (!lockedGrid && hoverGrid?.gridX === tile.gridX && hoverGrid?.gridY === tile.gridY)) && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      bottom: '-16px',
+                      transform: 'translate(-50%, 0)',
+                      width: '110px',
+                      height: '140px',
+                      backgroundImage: 'url(/buildings_1.webp)',
+                      backgroundSize: '1000% auto',
+                      backgroundPosition: `${(6 / 9) * 100}% 100%`,
+                      backgroundRepeat: 'no-repeat',
+                      pointerEvents: 'none',
+                      zIndex: depthIndex + 20,
+                      opacity: lockedGrid ? 1.0 : 0.75,
+                      filter: lockedGrid
+                        ? 'drop-shadow(0 0 16px rgba(250, 204, 21, 0.9))'
+                        : 'drop-shadow(0 0 12px rgba(110, 191, 139, 0.8))',
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-24px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: lockedGrid ? '#facc15' : '#6ebf8b',
+                        color: '#000000',
+                        padding: '2px 8px',
+                        borderRadius: '8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {lockedGrid ? '預定建造點' : '預覽建造位置'}
+                    </div>
+                  </div>
+                )}
 
               {/* Isometric Tile Polygon Selection & Stroke Border */}
               <svg
@@ -958,6 +1385,161 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 </button>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Phase 1 Modal: Function Parameters Form */}
+      {isPhase1ModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div
+            style={{
+              width: '90%',
+              maxWidth: '440px',
+              background: 'rgba(17, 27, 22, 0.95)',
+              border: '1px solid rgba(110, 191, 139, 0.4)',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+              color: '#f0f5f2',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#6ebf8b' }}>
+                <Hammer className="w-5 h-5 text-emerald-400" />
+                建造新建築 (新增子功能)
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPhase1ModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {phase1Error && (
+              <div style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.82rem', marginBottom: '14px' }}>
+                {phase1Error}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能英文名稱 (Name)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: Park, Library, Shop"
+                  value={newBuildingParams.name}
+                  onChange={(e) => setNewBuildingParams((prev) => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  中文描述名稱 (Description)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: 生態公園, 市立圖書館"
+                  value={newBuildingParams.description}
+                  onChange={(e) => setNewBuildingParams((prev) => ({ ...prev, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能類型 (Type)
+                </label>
+                <select
+                  value={newBuildingParams.type}
+                  onChange={(e) => setNewBuildingParams((prev) => ({ ...prev, type: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(17, 27, 22, 0.95)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="PAGE">PAGE (一般功能頁面)</option>
+                  <option value="POST">POST (動態貼文牆)</option>
+                  <option value="SETT">SETT (系統設定頁面)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+              <button
+                type="button"
+                onClick={() => setIsPhase1ModalOpen(false)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handlePhase1Next}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #6ebf8b 0%, #34784e 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(110, 191, 139, 0.4)',
+                }}
+              >
+                下一步 (前往選擇座標)
+              </button>
+            </div>
           </div>
         </div>
       )}
