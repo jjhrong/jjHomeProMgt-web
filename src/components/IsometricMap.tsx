@@ -635,14 +635,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
           // Ground tile sprite column index from Row 0:
-          // Col 0: 泥土 (Dirt)
-          // Col 1: 草地1 (Grass 1)
-          // Col 2: 草地2 (Grass 2)
-          const groundSpriteCol = tile.isDirt
-            ? 0
-            : (tile.gridX * 13 + tile.gridY * 37) % 2 === 0
-            ? 1
-            : 2
+          // Col 0: 第1張 泥土 (Dirt)
+          // Col 1: 第2張 草地1 (Grass 1)
+          const groundSpriteCol = tile.isDirt ? 0 : 1
 
           const clipId = `tile-clip-${tile.gridX}-${tile.gridY}`
 
