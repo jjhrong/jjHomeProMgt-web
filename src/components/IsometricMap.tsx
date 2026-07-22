@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
-import { Building, Compass, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldAlert } from 'lucide-react'
+import { Compass, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react'
+import { BuildingSpriteButton } from './BuildingSpriteButton'
 
 interface SubFunction {
   id: string
@@ -79,6 +80,19 @@ function orderSNToRelativeCoord(orderSN: number): { dx: number; dy: number } {
 // Module-level cache to remember map pan positions across component remounts and feature transitions
 const panCache = new Map<string, { x: number; y: number }>()
 
+// Sprite column selection for first row (Row 0):
+// Col 0: 泥土 | Col 1: 草地1 | Col 2: 草地2 | Col 3: 樹木1 | Col 4: 樹木2 | Col 5: 森林 | Col 6: 矮房 | Col 7: 別墅 | Col 8: 大樓 | Col 9: 摩天大樓
+const getBuildingSpriteCol = (orderSn: number, name: string = ''): number => {
+  const lower = name.toLowerCase()
+  if (lower.includes('tree') || lower.includes('樹')) return 3
+  if (lower.includes('forest') || lower.includes('森')) return 5
+  if (lower.includes('house') || lower.includes('矮房') || lower.includes('小房')) return 6
+  if (lower.includes('villa') || lower.includes('別墅')) return 7
+  if (lower.includes('office') || lower.includes('大樓')) return 8
+  if (lower.includes('tower') || lower.includes('摩天')) return 9
+  return 6 + (orderSn % 4)
+}
+
 export const IsometricMap: React.FC<IsometricMapProps> = ({
   homeFunction,
   token,
@@ -105,7 +119,35 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     const centerIsoY = (centerX + centerY) * (TILE_HEIGHT / 2)
     return { x: 0, y: -centerIsoY }
   })
+  // Zoom scale state (default 1.0 = 100%, clamped between 0.5 = 50% and 2.0 = 200%)
+  const [zoom, setZoom] = useState<number>(1.0)
   const [selectedTile, setSelectedTile] = useState<{ gridX: number; gridY: number } | null>(null)
+  const outerContainerRef = useRef<HTMLDivElement>(null)
+
+  const handleZoomChange = (newZoom: number) => {
+    const clamped = Math.min(Math.max(newZoom, 0.5), 2.0)
+    setZoom(parseFloat(clamped.toFixed(2)))
+  }
+
+  // Non-passive wheel event listener to prevent browser page scrolling when zooming map
+  useEffect(() => {
+    const container = outerContainerRef.current
+    if (!container) return
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 0.08 : -0.08
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev + delta, 0.5), 2.0)
+        return parseFloat(next.toFixed(2))
+      })
+    }
+
+    container.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      container.removeEventListener('wheel', onWheel)
+    }
+  }, [])
   
   // Transition / Authorization modal state
   const [transitionModal, setTransitionModal] = useState<{
@@ -117,8 +159,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   }>({ open: false, loading: false })
 
   const updatePan = (newPan: { x: number; y: number }) => {
-    setPan(newPan)
-    panCache.set(mapKey, newPan)
+    const centerIsoY = (centerX + centerY) * (TILE_HEIGHT / 2)
+    // Clamp pan bounds so the map can NEVER be dragged completely off-screen
+    const maxPanX = Math.max(300, (width * TILE_WIDTH) / 4 + 100)
+    const maxPanY = Math.max(220, (height * TILE_HEIGHT) / 2 + 100)
+
+    const clampedX = Math.max(-maxPanX, Math.min(maxPanX, newPan.x))
+    const clampedY = Math.max(-centerIsoY - maxPanY, Math.min(-centerIsoY + maxPanY, newPan.y))
+
+    const clamped = { x: clampedX, y: clampedY }
+    setPan(clamped)
+    panCache.set(mapKey, clamped)
   }
 
   // Map sub-functions to grid coordinates based on orderSN
@@ -259,14 +310,26 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           const rawDir = trans.remark || trans.description || defaultDirs[i % 4]
           const dir = rawDir.trim().toUpperCase() as 'N' | 'S' | 'E' | 'W'
           try {
-            const funcRes = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${targetFuncID}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-            if (funcRes.data && funcRes.data.name) {
+            let funcData: any = null
+            try {
+              const funcRes = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${targetFuncID}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              funcData = funcRes.data
+            } catch (err) {
+              // Fallback: query all_functions if targetFuncID is UUID and backend endpoint didn't match
+              const allRes = await axios.get(`${apiBaseUrl}/api/v1/all_functions`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              const allList = allRes.data || []
+              funcData = allList.find((f: any) => f.id === targetFuncID || f.name === targetFuncID)
+            }
+
+            if (funcData && funcData.name) {
               list.push({
                 dir,
-                name: funcRes.data.name,
-                title: funcRes.data.description || funcRes.data.name,
+                name: funcData.name,
+                title: funcData.description || funcData.name,
                 hasPermission: true,
               })
             }
@@ -481,6 +544,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
   return (
     <div
+      ref={outerContainerRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -532,7 +596,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           position: 'absolute',
           top: '50%',
           left: '50%',
-          transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
+          transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${zoom})`,
+          transformOrigin: 'center center',
           transition: isDragging ? 'none' : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
           width: '0px',
           height: '0px',
@@ -551,18 +616,15 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           let topFaceFill = '#3e7d48'
           let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
-          if (tile.isDirt) {
-            // Dirt / Mud (功能按鈕及相鄰一圈 泥土地)
-            sideLeftFill = '#69482b'
-            sideRightFill = '#4a321d'
-            topFaceFill = '#8c6239'
-            strokeColor = 'rgba(75, 50, 25, 0.45)'
-          }
-
-          if (isSelected) {
-            topFaceFill = 'rgba(250, 204, 21, 0.65)'
-            strokeColor = '#facc15'
-          }
+          // Ground tile sprite column index from Row 0:
+          // Col 0: 泥土 (Dirt)
+          // Col 1: 草地1 (Grass 1)
+          // Col 2: 草地2 (Grass 2)
+          const groundSpriteCol = tile.isDirt
+            ? 0
+            : (tile.gridX * 13 + tile.gridY * 37) % 2 === 0
+            ? 1
+            : 2
 
           return (
             <div
@@ -578,7 +640,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Isometric Tile Polygon */}
+              {/* Isometric Tile Polygon Base */}
               <svg
                 width={TILE_WIDTH}
                 height={TILE_HEIGHT + 16}
@@ -595,7 +657,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   fill={sideRightFill}
                 />
 
-                {/* Top Isometric Face */}
+                {/* Top Isometric Face Background */}
                 <polygon
                   points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
                   fill={topFaceFill}
@@ -605,89 +667,71 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 />
               </svg>
 
-              {/* Building Texture / Button */}
+              {/* Ground Tile Sprite Texture Overlay (第一排貼圖: 泥土 / 草地1 / 草地2) */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: `${TILE_WIDTH}px`,
+                  height: `${TILE_HEIGHT}px`,
+                  clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                  backgroundImage: 'url(/buildings_1.png)',
+                  backgroundSize: '1000% auto',
+                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
+                  opacity: isSelected ? 0.75 : 0.92,
+                  pointerEvents: 'none',
+                }}
+              />
+
+              {/* Building Texture / Sprite Button (第一排貼圖: 樹木1/樹木2/森林/矮房/別墅/大樓/摩天大樓) */}
               {tile.building && (
-                <div
+                <BuildingSpriteButton
+                  mapX={tile.gridX}
+                  mapY={tile.gridY}
+                  sheet_id={(tile.building as any).sheet_id || '1'}
+                  spriteCol={
+                    (tile.building as any).spriteCol ??
+                    getBuildingSpriteCol(
+                      tile.building.orderSn,
+                      tile.building.description || tile.building.name
+                    )
+                  }
+                  spriteRow={0}
+                  buildingName={tile.building.description || tile.building.name}
+                  tileWidth={TILE_WIDTH}
+                  tileHeight={TILE_HEIGHT}
+                  spriteWidth={100}
+                  spriteHeight={100}
                   onClick={(e) => handleBuildingClick(e, tile.building!, tile)}
-                  style={{
-                    position: 'absolute',
-                    bottom: '22px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px',
-                    zIndex: depthIndex + 5,
-                    cursor: 'pointer',
-                    animation: 'float 3s ease-in-out infinite',
-                  }}
-                >
-                  {/* Building 3D Pin Card */}
-                  <div
-                    style={{
-                      background: 'linear-gradient(135deg, #5ba878 0%, #2e6643 100%)',
-                      color: '#ffffff',
-                      padding: '6px 12px',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      boxShadow: '0 10px 25px rgba(91, 168, 120, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      whiteSpace: 'nowrap',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    <Building className="w-3.5 h-3.5" />
-                    {tile.building.description || tile.building.name}
-                  </div>
-                  {/* Isometric Building Base Indicator */}
-                  <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: '#6ebf8b',
-                      boxShadow: '0 0 12px #6ebf8b',
-                    }}
-                  />
-                </div>
+                />
               )}
             </div>
           )
         })}
 
-        {/* Highway T-Bar Signposts (四個邊中點往外延伸約 7 格 - 高速公路 T 霸提示招牌) */}
+        {/* Highway T-Bar Signposts (四個邊中點往外延伸 - 高速公路 T 霸提示招牌) */}
         {adjacentMapInfos.map((adj) => {
-          let midX = centerX
-          let midY = centerY
-          let offsetX = 0
-          let offsetY = 0
+          let tbarIsoX = 0
+          let tbarIsoY = 0
 
           if (adj.dir === 'N') {
-            midX = Math.floor(width / 2)
-            midY = 0
-            offsetY = -3.5 * TILE_HEIGHT
+            // Screen North (Top vertex of isometric map)
+            tbarIsoX = 0
+            tbarIsoY = -70
           } else if (adj.dir === 'S') {
-            midX = Math.floor(width / 2)
-            midY = height - 1
-            offsetY = 3.5 * TILE_HEIGHT
+            // Screen South (Bottom vertex of isometric map)
+            tbarIsoX = 0
+            tbarIsoY = (width - 1 + height - 1) * (TILE_HEIGHT / 2) + 70
           } else if (adj.dir === 'W') {
-            midX = 0
-            midY = Math.floor(height / 2)
-            offsetX = -3.5 * TILE_WIDTH
+            // Screen West (Left vertex of isometric map)
+            tbarIsoX = -(height - 1) * (TILE_WIDTH / 2) - 80
+            tbarIsoY = (height - 1) * (TILE_HEIGHT / 2)
           } else if (adj.dir === 'E') {
-            midX = width - 1
-            midY = Math.floor(height / 2)
-            offsetX = 3.5 * TILE_WIDTH
+            // Screen East (Right vertex of isometric map)
+            tbarIsoX = (width - 1) * (TILE_WIDTH / 2) + 80
+            tbarIsoY = (width - 1) * (TILE_HEIGHT / 2)
           }
-
-          const midIsoX = (midX - midY) * (TILE_WIDTH / 2)
-          const midIsoY = (midX + midY) * (TILE_HEIGHT / 2)
-          const tbarIsoX = midIsoX + offsetX
-          const tbarIsoY = midIsoY + offsetY
 
           return (
             <div
@@ -767,6 +811,76 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             </div>
           )
         })}
+      </div>
+
+      {/* Floating Bottom-Right Zoom Controller (滾輪 / 拉條縮放控制器 50% ~ 200%) */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '8px 16px',
+          borderRadius: '16px',
+          background: 'rgba(12, 20, 17, 0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(163, 198, 175, 0.25)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+        }}
+      >
+        <button
+          onClick={() => handleZoomChange(zoom - 0.1)}
+          title="縮小 (50%)"
+          disabled={zoom <= 0.5}
+          className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-950/60 text-emerald-300 hover:text-white transition-all border border-emerald-500/30 cursor-pointer"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+
+        <input
+          type="range"
+          min="0.5"
+          max="2.0"
+          step="0.05"
+          value={zoom}
+          onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+          style={{
+            width: '100px',
+            accentColor: '#6ebf8b',
+            cursor: 'pointer',
+          }}
+        />
+
+        <button
+          onClick={() => handleZoomChange(zoom + 0.1)}
+          title="放大 (200%)"
+          disabled={zoom >= 2.0}
+          className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-950/60 text-emerald-300 hover:text-white transition-all border border-emerald-500/30 cursor-pointer"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+
+        <div
+          onClick={() => handleZoomChange(1.0)}
+          title="點擊重置為 100%"
+          style={{
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: '#a3c6af',
+            minWidth: '44px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            padding: '3px 6px',
+            borderRadius: '6px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(163, 198, 175, 0.2)',
+          }}
+        >
+          {Math.round(zoom * 100)}%
+        </div>
       </div>
 
       {/* Area Transition & Permission Alert Modal */}
