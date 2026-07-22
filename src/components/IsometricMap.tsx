@@ -317,8 +317,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
         for (let i = 0; i < activeTransitions.length; i++) {
           const trans = activeTransitions[i]
-          const targetFuncID = trans.mapBID
-          const rawDir = trans.remark || trans.description || defaultDirs[i % 4]
+          const targetFuncID = trans.map_b_id || trans.mapBID || trans.MapBID
+          const rawDir = trans.remark || trans.Remark || trans.description || defaultDirs[i % 4]
           const dir = rawDir.trim().toUpperCase() as 'N' | 'S' | 'E' | 'W'
           try {
             let funcData: any = null
@@ -349,32 +349,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           }
         }
 
-        // Fallback demo transition candidates if no AREA_TRANSITION maps exist yet
+        // Guaranteed fallback demo T-Bar signposts (東區生態公園) if no AREA_TRANSITION maps exist in DB
         if (list.length === 0) {
-          const fallbackCandidates: { dir: 'N' | 'S' | 'E' | 'W'; name: string }[] = [
-            { dir: 'E', name: 'Setting' },
-            { dir: 'W', name: 'User' },
-          ]
-          for (const cand of fallbackCandidates) {
-            if (cand.name !== homeFunction.name) {
-              try {
-                const funcRes = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${cand.name}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                })
-                if (funcRes.data && funcRes.data.name) {
-                  list.push({
-                    dir: cand.dir,
-                    name: funcRes.data.name,
-                    title: funcRes.data.description || funcRes.data.name,
-                    hasPermission: true,
-                  })
-                }
-              } catch (err) {
-                // No permission
-              }
-            }
-          }
+          list.push({
+            dir: 'E',
+            name: 'Park',
+            title: '東區生態公園',
+            hasPermission: true,
+          })
         }
+
+        console.log('[T-Bar Debug] Fetched T-Bar adjacentMapInfos:', list)
 
         if (isMounted) {
           setAdjacentMapInfos(list)
@@ -649,30 +634,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           let topFaceFill = '#3e7d48'
           let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
-          if (tile.isDirt) {
-            // 泥土 (Dirt)
-            sideLeftFill = '#69482b'
-            sideRightFill = '#4a321d'
-            topFaceFill = '#8c6239'
-            strokeColor = 'rgba(75, 50, 25, 0.45)'
-          } else if ((tile.gridX * 13 + tile.gridY * 37) % 2 === 0) {
-            // 草地1 (Grass 1)
-            sideLeftFill = '#2d5e35'
-            sideRightFill = '#1c3e23'
-            topFaceFill = '#3e7d48'
-            strokeColor = 'rgba(30, 65, 35, 0.4)'
-          } else {
-            // 草地2 (Grass 2)
-            sideLeftFill = '#27522f'
-            sideRightFill = '#18361e'
-            topFaceFill = '#367340'
-            strokeColor = 'rgba(25, 55, 30, 0.4)'
-          }
+          // Ground tile sprite column index from Row 0:
+          // Col 0: 泥土 (Dirt)
+          // Col 1: 草地1 (Grass 1)
+          // Col 2: 草地2 (Grass 2)
+          const groundSpriteCol = tile.isDirt
+            ? 0
+            : (tile.gridX * 13 + tile.gridY * 37) % 2 === 0
+            ? 1
+            : 2
 
-          if (isSelected) {
-            topFaceFill = 'rgba(250, 204, 21, 0.65)'
-            strokeColor = '#facc15'
-          }
+          const clipId = `tile-clip-${tile.gridX}-${tile.gridY}`
 
           return (
             <div
@@ -695,6 +667,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 viewBox={`0 0 ${TILE_WIDTH} ${TILE_HEIGHT + 16}`}
                 style={{ overflow: 'visible' }}
               >
+                <defs>
+                  <clipPath id={clipId}>
+                    <polygon
+                      points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
+                    />
+                  </clipPath>
+                </defs>
+
                 {/* 3D Tile Side Height extrusion */}
                 <polygon
                   points={`0,${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} ${TILE_WIDTH / 2},${TILE_HEIGHT + 10} 0,${TILE_HEIGHT / 2 + 10}`}
@@ -705,10 +685,29 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   fill={sideRightFill}
                 />
 
-                {/* Top Isometric Face Background */}
+                {/* Top Isometric Face Base Color */}
                 <polygon
                   points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
                   fill={topFaceFill}
+                />
+
+                {/* Ground Tile Texture Sprite (泥土 / 草地1 / 草地2) */}
+                <g clipPath={`url(#${clipId})`}>
+                  <image
+                    href="/buildings_1.webp"
+                    x={-groundSpriteCol * TILE_WIDTH}
+                    y={0}
+                    width={TILE_WIDTH * 10}
+                    height={TILE_HEIGHT * 10}
+                    preserveAspectRatio="none"
+                    opacity={isSelected ? 0.75 : 0.95}
+                  />
+                </g>
+
+                {/* Top Isometric Face Stroke Border */}
+                <polygon
+                  points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
+                  fill="none"
                   stroke={strokeColor}
                   strokeWidth={isSelected ? 2 : 1}
                   className="transition-all duration-200"
@@ -750,18 +749,18 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           if (adj.dir === 'N') {
             // Screen North (Top vertex of isometric map)
             tbarIsoX = 0
-            tbarIsoY = -70
+            tbarIsoY = 20
           } else if (adj.dir === 'S') {
             // Screen South (Bottom vertex of isometric map)
             tbarIsoX = 0
-            tbarIsoY = (width - 1 + height - 1) * (TILE_HEIGHT / 2) + 70
+            tbarIsoY = (width - 1 + height - 1) * (TILE_HEIGHT / 2) - 20
           } else if (adj.dir === 'W') {
             // Screen West (Left vertex of isometric map)
-            tbarIsoX = -(height - 1) * (TILE_WIDTH / 2) - 80
+            tbarIsoX = -(height - 1) * (TILE_WIDTH / 2) + 40
             tbarIsoY = (height - 1) * (TILE_HEIGHT / 2)
           } else if (adj.dir === 'E') {
             // Screen East (Right vertex of isometric map)
-            tbarIsoX = (width - 1) * (TILE_WIDTH / 2) + 80
+            tbarIsoX = (width - 1) * (TILE_WIDTH / 2) - 40
             tbarIsoY = (width - 1) * (TILE_HEIGHT / 2)
           }
 
