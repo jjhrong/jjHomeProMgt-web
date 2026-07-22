@@ -660,10 +660,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 style={{
                   position: 'absolute',
                   left: '50%',
-                  bottom: '32px',
+                  bottom: '0px',
                   transform: 'translate(-50%, 0)',
                   width: `${TILE_WIDTH + 14}px`,
-                  height: `${TILE_HEIGHT + 24}px`,
+                  height: '115px',
                   backgroundImage: 'url(/buildings_1.webp)',
                   backgroundSize: '1000% auto',
                   backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
