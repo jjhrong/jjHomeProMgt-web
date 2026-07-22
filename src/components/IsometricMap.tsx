@@ -660,58 +660,39 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Isometric Tile Polygon Base */}
+              {/* Ground Tile 3D Block Sprite (第一排貼圖: 泥土 / 草地1 / 草地2 - 與建築物相同貼圖對齊邏輯) */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: '-16px',
+                  transform: 'translate(-50%, 0)',
+                  width: `${TILE_WIDTH + 14}px`,
+                  height: `${TILE_HEIGHT + 24}px`,
+                  backgroundImage: 'url(/buildings_1.webp)',
+                  backgroundSize: '1000% auto',
+                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 100%`,
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  opacity: isSelected ? 0.75 : 1.0,
+                }}
+              />
+
+              {/* Isometric Tile Polygon Selection & Stroke Border */}
               <svg
                 width={TILE_WIDTH}
                 height={TILE_HEIGHT + 16}
                 viewBox={`0 0 ${TILE_WIDTH} ${TILE_HEIGHT + 16}`}
-                style={{ overflow: 'visible' }}
+                style={{ overflow: 'visible', pointerEvents: 'none' }}
               >
-                <defs>
-                  <clipPath id={clipId}>
-                    <polygon
-                      points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
-                    />
-                  </clipPath>
-                </defs>
-
-                {/* 3D Tile Side Height extrusion */}
-                <polygon
-                  points={`0,${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} ${TILE_WIDTH / 2},${TILE_HEIGHT + 10} 0,${TILE_HEIGHT / 2 + 10}`}
-                  fill={sideLeftFill}
-                />
-                <polygon
-                  points={`${TILE_WIDTH / 2},${TILE_HEIGHT} ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH},${TILE_HEIGHT / 2 + 10} ${TILE_WIDTH / 2},${TILE_HEIGHT + 10}`}
-                  fill={sideRightFill}
-                />
-
-                {/* Top Isometric Face Base Color */}
-                <polygon
-                  points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
-                  fill={topFaceFill}
-                />
-
-                {/* Ground Tile Texture Sprite (泥土 / 草地1 / 草地2 - 1:1 正常比例不壓縮) */}
-                <g clipPath={`url(#${clipId})`}>
-                  <image
-                    href="/buildings_1.webp"
-                    x={-groundSpriteCol * TILE_WIDTH}
-                    y={-(TILE_WIDTH - TILE_HEIGHT) / 2}
-                    width={TILE_WIDTH * 10}
-                    height={TILE_WIDTH * 10}
-                    preserveAspectRatio="none"
-                    opacity={isSelected ? 0.75 : 0.95}
+                {isSelected && (
+                  <polygon
+                    points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
+                    fill="rgba(250, 204, 21, 0.4)"
+                    stroke="#facc15"
+                    strokeWidth={2}
                   />
-                </g>
-
-                {/* Top Isometric Face Stroke Border */}
-                <polygon
-                  points={`${TILE_WIDTH / 2},0 ${TILE_WIDTH},${TILE_HEIGHT / 2} ${TILE_WIDTH / 2},${TILE_HEIGHT} 0,${TILE_HEIGHT / 2}`}
-                  fill="none"
-                  stroke={strokeColor}
-                  strokeWidth={isSelected ? 2 : 1}
-                  className="transition-all duration-200"
-                />
+                )}
               </svg>
 
               {/* Building Texture / Sprite Button (第一排貼圖: 樹木1/樹木2/森林/矮房/別墅/大樓/摩天大樓) */}
