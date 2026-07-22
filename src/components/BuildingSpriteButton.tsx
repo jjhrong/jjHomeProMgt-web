@@ -51,11 +51,9 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         position: 'absolute',
-        left: `${isoX}px`,
-        top: `${isoY}px`,
-        transform: `translate(-50%, calc(-100% + ${tileHeight / 2}px)) ${
-          isHovered ? 'translateY(-5px)' : 'translateY(0)'
-        }`,
+        left: '50%',
+        bottom: `${tileHeight / 2}px`,
+        transform: `translate(-50%, ${isHovered ? '-6px' : '0px'})`,
         transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease',
         zIndex: depthIndex,
         cursor: 'pointer',

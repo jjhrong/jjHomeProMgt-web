@@ -608,23 +608,38 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             selectedTile?.gridX === tile.gridX && selectedTile?.gridY === tile.gridY
           const depthIndex = (tile.gridX + tile.gridY) * 10 + tile.gridX
 
-          // Terrain coloring independent of global system framework themes
-          // Grass (草地): Default terrain for normal ground
-          // Dirt (泥土地): Building feature tiles and their 1-ring neighbor tiles
+          // Terrain coloring & texture mapping for Row 0 sprites
+          // Dirt (泥土地): Building feature tiles and 1-ring neighbor tiles
+          // Grass 1 (草地1) & Grass 2 (草地2): Varied natural meadow grass
           let sideLeftFill = '#2d5e35'
           let sideRightFill = '#1c3e23'
           let topFaceFill = '#3e7d48'
           let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
-          // Ground tile sprite column index from Row 0:
-          // Col 0: 泥土 (Dirt)
-          // Col 1: 草地1 (Grass 1)
-          // Col 2: 草地2 (Grass 2)
-          const groundSpriteCol = tile.isDirt
-            ? 0
-            : (tile.gridX * 13 + tile.gridY * 37) % 2 === 0
-            ? 1
-            : 2
+          if (tile.isDirt) {
+            // 泥土 (Dirt)
+            sideLeftFill = '#69482b'
+            sideRightFill = '#4a321d'
+            topFaceFill = '#8c6239'
+            strokeColor = 'rgba(75, 50, 25, 0.45)'
+          } else if ((tile.gridX * 13 + tile.gridY * 37) % 2 === 0) {
+            // 草地1 (Grass 1)
+            sideLeftFill = '#2d5e35'
+            sideRightFill = '#1c3e23'
+            topFaceFill = '#3e7d48'
+            strokeColor = 'rgba(30, 65, 35, 0.4)'
+          } else {
+            // 草地2 (Grass 2)
+            sideLeftFill = '#27522f'
+            sideRightFill = '#18361e'
+            topFaceFill = '#367340'
+            strokeColor = 'rgba(25, 55, 30, 0.4)'
+          }
+
+          if (isSelected) {
+            topFaceFill = 'rgba(250, 204, 21, 0.65)'
+            strokeColor = '#facc15'
+          }
 
           return (
             <div
@@ -666,23 +681,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   className="transition-all duration-200"
                 />
               </svg>
-
-              {/* Ground Tile Sprite Texture Overlay (第一排貼圖: 泥土 / 草地1 / 草地2) */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: `${TILE_WIDTH}px`,
-                  height: `${TILE_HEIGHT}px`,
-                  clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                  backgroundImage: 'url(/buildings_1.png)',
-                  backgroundSize: '1000% auto',
-                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
-                  opacity: isSelected ? 0.75 : 0.92,
-                  pointerEvents: 'none',
-                }}
-              />
 
               {/* Building Texture / Sprite Button (第一排貼圖: 樹木1/樹木2/森林/矮房/別墅/大樓/摩天大樓) */}
               {tile.building && (
