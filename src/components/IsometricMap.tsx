@@ -634,11 +634,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           let topFaceFill = '#3e7d48'
           let strokeColor = 'rgba(30, 65, 35, 0.4)'
 
-          // Ground tile sprite column index from Row 0:
-          // Col 0: 第1張 泥土 (Dirt)
-          // Col 1: 第2張 草地1 (Grass 1)
-          const groundSpriteCol = tile.isDirt ? 0 : 1
-
           // 10% deterministic chance for natural tree decorations on meadow grass:
           const hasTree =
             !tile.isDirt &&
@@ -646,6 +641,16 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             ((tile.gridX * 37 + tile.gridY * 17 + 13) % 100) < 10
 
           const treeSpriteCol = (tile.gridX * 19 + tile.gridY * 23) % 2 === 0 ? 3 : 4
+
+          // Ground tile sprite column index from Row 0:
+          // Col 0: 第1張 泥土 (Dirt)
+          // Col 1: 第2張 草地1 (Grass 1)
+          // Col 3/4: 10%機率直接置換為 第4/5張 樹木1/樹木2 (Tree Block)
+          const groundSpriteCol = tile.isDirt
+            ? 0
+            : hasTree
+            ? treeSpriteCol
+            : 1
 
           const clipId = `tile-clip-${tile.gridX}-${tile.gridY}`
 
@@ -663,7 +668,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Ground Tile 3D Block Sprite (有建築物就不渲染泥土，無建築物才渲染地表) */}
+              {/* Ground Tile 3D Block Sprite (有建築物就不渲染地表，無建築物才渲染地表/樹木) */}
               {!tile.building && (
                 <div
                   style={{
@@ -679,26 +684,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     backgroundRepeat: 'no-repeat',
                     pointerEvents: 'none',
                     opacity: isSelected ? 0.75 : 1.0,
-                  }}
-                />
-              )}
-
-              {/* 10% 機率渲染自然樹木造景 (草地上 Col 3 樹木1 / Col 4 樹木2) */}
-              {hasTree && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    bottom: '-4px',
-                    transform: 'translate(-50%, 0)',
-                    width: '80px',
-                    height: '95px',
-                    backgroundImage: 'url(/buildings_1.webp)',
-                    backgroundSize: '1000% auto',
-                    backgroundPosition: `${(treeSpriteCol / 9) * 100}% 0%`,
-                    backgroundRepeat: 'no-repeat',
-                    pointerEvents: 'none',
-                    zIndex: depthIndex + 1,
                   }}
                 />
               )}
