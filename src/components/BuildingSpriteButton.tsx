@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Building } from 'lucide-react'
+import { Building, ShieldAlert } from 'lucide-react'
 
 export interface BuildingSpriteButtonProps {
   mapX: number
@@ -9,6 +9,7 @@ export interface BuildingSpriteButtonProps {
   spriteRow?: number
   buildingName: string
   buildingData?: any
+  hasPermission?: boolean
   tileWidth?: number
   tileHeight?: number
   spriteWidth?: number
@@ -19,12 +20,13 @@ export interface BuildingSpriteButtonProps {
 export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   mapX,
   mapY,
-  sheet_id = '01',
+  sheet_id: _sheet_id = '01',
   spriteCol = 0,
-  spriteRow = 0,
+  spriteRow: _spriteRow = 0,
   buildingName,
-  tileWidth = 96,
-  tileHeight = 48,
+  hasPermission = true,
+  tileWidth: _tileWidth = 96,
+  tileHeight: _tileHeight = 48,
   spriteWidth = 110,
   spriteHeight = 140,
   onClick,
@@ -38,7 +40,7 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   // CSS Sprite background position for 10-column sprite sheet:
   const bgPositionPercentX = (spriteCol / 9) * 100
   // Align Y to 100% so the bottom base of the sprite aligns to the bottom of the container!
-  const spriteImageUrl = '/buildings_1.png?v=3'
+  const spriteImageUrl = '/buildings_1.webp'
 
   return (
     <div
@@ -56,33 +58,49 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        filter: isHovered ? 'drop-shadow(0 12px 20px rgba(110, 191, 139, 0.45))' : 'none',
+        filter: isHovered
+          ? hasPermission === false
+            ? 'drop-shadow(0 12px 20px rgba(239, 68, 68, 0.45))'
+            : 'drop-shadow(0 12px 20px rgba(110, 191, 139, 0.45))'
+          : 'none',
       }}
     >
       {/* 3D Pin Card Title Badge */}
       <div
         style={{
           background: isHovered
-            ? 'linear-gradient(135deg, #6ebf8b 0%, #34784e 100%)'
-            : 'linear-gradient(135deg, #1f3a2c 0%, #11221a 100%)',
+            ? hasPermission === false
+              ? 'linear-gradient(135deg, #e57373 0%, #b71c1c 100%)'
+              : 'linear-gradient(135deg, #6ebf8b 0%, #34784e 100%)'
+            : hasPermission === false
+              ? 'linear-gradient(135deg, #3a1f1f 0%, #221111 100%)'
+              : 'linear-gradient(135deg, #1f3a2c 0%, #11221a 100%)',
           color: '#ffffff',
           padding: '4px 10px',
           borderRadius: '10px',
           fontSize: '0.72rem',
           fontWeight: 700,
           boxShadow: isHovered
-            ? '0 6px 18px rgba(110, 191, 139, 0.5)'
+            ? hasPermission === false
+              ? '0 6px 18px rgba(229, 115, 115, 0.5)'
+              : '0 6px 18px rgba(110, 191, 139, 0.5)'
             : '0 4px 12px rgba(0, 0, 0, 0.5)',
           display: 'flex',
           alignItems: 'center',
           gap: '5px',
           whiteSpace: 'nowrap',
-          border: '1px solid rgba(163, 198, 175, 0.3)',
+          border: hasPermission === false
+            ? '1px solid rgba(239, 68, 68, 0.4)'
+            : '1px solid rgba(163, 198, 175, 0.3)',
           marginBottom: '4px',
           transition: 'all 0.2s ease',
         }}
       >
-        <Building className="w-3 h-3 text-emerald-300" />
+        {hasPermission === false ? (
+          <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+        ) : (
+          <Building className="w-3.5 h-3.5 text-emerald-300" />
+        )}
         {buildingName}
       </div>
 

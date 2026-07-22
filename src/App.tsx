@@ -921,6 +921,7 @@ const SettingAuthTable: React.FC<{ token: string | null }> = ({ token }) => {
 function App() {
   const navigate = useNavigate()
   const location = useLocation()
+
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user')

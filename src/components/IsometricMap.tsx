@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
 import { Compass, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react'
 import { BuildingSpriteButton } from './BuildingSpriteButton'
+import { FogOverlay } from './FogOverlay'
+import type { FogState } from './FogOverlay'
 
 interface SubFunction {
   id: string
@@ -123,6 +125,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   const [zoom, setZoom] = useState<number>(1.0)
   const [selectedTile, setSelectedTile] = useState<{ gridX: number; gridY: number } | null>(null)
   const outerContainerRef = useRef<HTMLDivElement>(null)
+
+  // Cloud fog overlay transition state for map initial enter and area map switching
+  const [fogState, setFogState] = useState<FogState>('covered')
 
   const handleZoomChange = (newZoom: number) => {
     const clamped = Math.min(Math.max(newZoom, 0.5), 2.0)
@@ -275,6 +280,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   useEffect(() => {
     let isMounted = true
     const fetchAdjacentMaps = async () => {
+      // Keep fog covered while homeFunction subFunctions/ID are still loading from backend
+      if (!homeFunction || (!homeFunction.id && (!homeFunction.subFunctions || homeFunction.subFunctions.length === 0))) {
+        setFogState('covered')
+        return
+      }
+
       try {
         let response = await axios.get(
           `${apiBaseUrl}/api/v1/maps?kind=AREA_TRANSITION&map_a_id=${homeFunction.id || ''}`,
@@ -370,6 +381,24 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         }
       } catch (err) {
         console.error('Failed to fetch adjacent maps for T-Bar signposts:', err)
+      } finally {
+        if (isMounted) {
+          // Double rAF + 180ms delay ensures React paints all building sprite buttons and T-Bars into the DOM under fog cover before opening
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (isMounted) {
+                setTimeout(() => {
+                  if (isMounted) {
+                    setFogState('opening')
+                    setTimeout(() => {
+                      if (isMounted) setFogState('hidden')
+                    }, 800)
+                  }
+                }, 180)
+              }
+            })
+          })
+        }
       }
     }
 
@@ -377,7 +406,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     return () => {
       isMounted = false
     }
-  }, [homeFunction.id, homeFunction.name, token, apiBaseUrl])
+  }, [homeFunction.id, homeFunction.name, homeFunction.subFunctions?.length, token, apiBaseUrl])
 
   // Dragging state for mouse/touch panning
   const [isDragging, setIsDragging] = useState(false)
@@ -482,7 +511,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     e.stopPropagation()
     if (isMoved) return
     if (targetName) {
-      onNavigate(`/${targetName}`)
+      setFogState('closing')
+      setTimeout(() => {
+        setFogState('covered')
+        onNavigate(`/${targetName}`)
+      }, 800)
       return
     }
     setTransitionModal({ open: true, loading: true, dir })
@@ -697,6 +730,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   }
                   spriteRow={0}
                   buildingName={tile.building.description || tile.building.name}
+                  hasPermission={(tile.building as any).hasPermission}
                   tileWidth={TILE_WIDTH}
                   tileHeight={TILE_HEIGHT}
                   spriteWidth={100}
@@ -880,6 +914,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           {Math.round(zoom * 100)}%
         </div>
       </div>
+
+      {/* Map Container Fog Transition Overlay */}
+      <FogOverlay fogState={fogState} cloudMaskUrl="/mask_cloud.webp" />
 
       {/* Area Transition & Permission Alert Modal */}
       {transitionModal.open && (
