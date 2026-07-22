@@ -1628,7 +1628,7 @@ function App() {
                 </button>
               </div>
             ) : (
-              renderFunctionBlocks(currentFunction || homeFunction)
+              renderFunctionBlocks(currentFunction?.type === 'POST' ? homeFunction : (currentFunction || homeFunction))
             )}
           </div>
         )}
@@ -1859,6 +1859,92 @@ function App() {
             setShowProfileModal(true)
           }}
         />
+      )}
+
+      {/* POST Function Feature Modal Popup Window */}
+      {currentFunction && currentFunction.type === 'POST' && (
+        <div
+          className="modal-overlay"
+          style={{
+            zIndex: 1100,
+            background: 'rgba(5, 12, 9, 0.78)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => navigateTo('/')}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              maxWidth: '940px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              borderRadius: '24px',
+              border: '1px solid rgba(163, 198, 175, 0.3)',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.7)',
+              position: 'relative',
+              padding: '28px',
+              background: 'linear-gradient(145deg, #112019 0%, #0a1410 100%)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Close Button */}
+            <button
+              type="button"
+              onClick={() => navigateTo('/')}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                color: '#e2ece6',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.2rem',
+                transition: 'all 0.2s ease',
+                zIndex: 10,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.6)'
+                e.currentTarget.style.color = '#ffffff'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                e.currentTarget.style.color = '#e2ece6'
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Function Title Header */}
+            <div style={{ marginBottom: '20px', borderBottom: '1px solid rgba(163, 198, 175, 0.15)', paddingBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f0f5f2', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(110, 191, 139, 0.15)', color: '#6ebf8b', fontSize: '0.8rem', border: '1px solid rgba(110, 191, 139, 0.3)' }}>
+                  POST
+                </span>
+                {currentFunction.description || currentFunction.name}
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: '#a1b5aa', marginTop: '4px' }}>
+                功能名稱: {currentFunction.name}
+              </p>
+            </div>
+
+            {/* Post Board Component */}
+            <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} />
+          </div>
+        </div>
       )}
     </>
   )
