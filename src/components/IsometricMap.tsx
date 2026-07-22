@@ -691,14 +691,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   fill={topFaceFill}
                 />
 
-                {/* Ground Tile Texture Sprite (泥土 / 草地1 / 草地2) */}
+                {/* Ground Tile Texture Sprite (泥土 / 草地1 / 草地2 - 1:1 正常比例不壓縮) */}
                 <g clipPath={`url(#${clipId})`}>
                   <image
                     href="/buildings_1.webp"
                     x={-groundSpriteCol * TILE_WIDTH}
-                    y={0}
+                    y={-(TILE_WIDTH - TILE_HEIGHT) / 2}
                     width={TILE_WIDTH * 10}
-                    height={TILE_HEIGHT * 10}
+                    height={TILE_WIDTH * 10}
                     preserveAspectRatio="none"
                     opacity={isSelected ? 0.75 : 0.95}
                   />
