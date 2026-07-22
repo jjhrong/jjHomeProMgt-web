@@ -660,7 +660,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 style={{
                   position: 'absolute',
                   left: '50%',
-                  bottom: '0px',
+                  bottom: '-12px',
                   transform: 'translate(-50%, 0)',
                   width: `${TILE_WIDTH + 14}px`,
                   height: '115px',
