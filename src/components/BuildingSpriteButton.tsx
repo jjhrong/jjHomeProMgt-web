@@ -48,7 +48,7 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
       style={{
         position: 'absolute',
         left: '50%',
-        bottom: '4px',
+        bottom: '-16px',
         transform: `translate(-50%, ${isHovered ? '-6px' : '0px'})`,
         transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease',
         zIndex: depthIndex,
