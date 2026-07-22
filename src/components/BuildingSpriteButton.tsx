@@ -25,24 +25,20 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   buildingName,
   tileWidth = 96,
   tileHeight = 48,
-  spriteWidth = 100,
-  spriteHeight = 100,
+  spriteWidth = 110,
+  spriteHeight = 140,
   onClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [imageError, setImageError] = useState(false)
-
-  // Isometric projection coordinates
-  const isoX = (mapX - mapY) * (tileWidth / 2)
-  const isoY = (mapX + mapY) * (tileHeight / 2)
 
   // Z-Index calculation for painter's algorithm depth occlusion
   const depthIndex = (mapX + mapY) * 10 + mapX + 5
 
   // CSS Sprite background position for 10-column sprite sheet:
   const bgPositionPercentX = (spriteCol / 9) * 100
-  const bgPositionPercentY = (spriteRow / 9) * 100
-  const spriteImageUrl = '/buildings_1.png'
+  // Align Y to 100% so the bottom base of the sprite aligns to the bottom of the container!
+  const spriteImageUrl = '/buildings_1.png?v=3'
 
   return (
     <div
@@ -90,19 +86,18 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
         {buildingName}
       </div>
 
-      {/* Building CSS Sprite Crop Container */}
+      {/* Building CSS Sprite Crop Container (Fixed Width, Bottom Aligned Base) */}
       <div
         style={{
           width: `${spriteWidth}px`,
           height: `${spriteHeight}px`,
           backgroundImage: imageError ? 'none' : `url(${spriteImageUrl})`,
           backgroundSize: '1000% auto',
-          backgroundPosition: `${bgPositionPercentX}% ${bgPositionPercentY}%`,
+          backgroundPosition: `${bgPositionPercentX}% 100%`,
           backgroundRepeat: 'no-repeat',
-          overflow: 'hidden',
           position: 'relative',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-end',
           justifyContent: 'center',
         }}
       >
