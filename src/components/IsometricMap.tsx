@@ -655,23 +655,25 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Ground Tile 3D Block Sprite (第1張 泥土 / 第2張 草地1 - Row 0 貼圖) */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: '-12px',
-                  transform: 'translate(-50%, 0)',
-                  width: `${TILE_WIDTH + 14}px`,
-                  height: '115px',
-                  backgroundImage: 'url(/buildings_1.webp)',
-                  backgroundSize: '1000% auto',
-                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
-                  backgroundRepeat: 'no-repeat',
-                  pointerEvents: 'none',
-                  opacity: isSelected ? 0.75 : 1.0,
-                }}
-              />
+              {/* Ground Tile 3D Block Sprite (有建築物就不渲染泥土，無建築物才渲染地表) */}
+              {!tile.building && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: '-12px',
+                    transform: 'translate(-50%, 0)',
+                    width: `${TILE_WIDTH + 14}px`,
+                    height: '115px',
+                    backgroundImage: 'url(/buildings_1.webp)',
+                    backgroundSize: '1000% auto',
+                    backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    opacity: isSelected ? 0.75 : 1.0,
+                  }}
+                />
+              )}
 
               {/* Isometric Tile Polygon Selection & Stroke Border */}
               <svg
