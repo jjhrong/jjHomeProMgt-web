@@ -104,14 +104,14 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
         {buildingName}
       </div>
 
-      {/* Building CSS Sprite Crop Container (Fixed Width, Row 0 Top Aligned) */}
+      {/* Building CSS Sprite Crop Container (Fixed Width, Bottom Aligned Base) */}
       <div
         style={{
           width: `${spriteWidth}px`,
           height: `${spriteHeight}px`,
           backgroundImage: imageError ? 'none' : `url(${spriteImageUrl})`,
           backgroundSize: '1000% auto',
-          backgroundPosition: `${bgPositionPercentX}% 0%`,
+          backgroundPosition: `${bgPositionPercentX}% 100%`,
           backgroundRepeat: 'no-repeat',
           position: 'relative',
           display: 'flex',
