@@ -187,7 +187,7 @@ export const AutoCompleteSearch: React.FC<AutoCompleteSearchProps> = ({
       {/* Floating AutoComplete Dropdown */}
       {isExpanded && isOpen && query.trim() !== '' && (
         <div 
-          className="absolute top-full left-0 right-0 mt-3 max-h-96 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl z-50"
+          className="absolute top-full left-0 right-0 mt-3 max-h-96 overflow-y-auto bg-[#12201a]/95 backdrop-blur-md border border-emerald-900/60 rounded-2xl shadow-2xl z-50"
           style={{
             padding: '24px',
             display: 'flex',
@@ -208,7 +208,7 @@ export const AutoCompleteSearch: React.FC<AutoCompleteSearchProps> = ({
               {/* Functions Section */}
               {results.functions && results.functions.length > 0 && (
                 <div className="flex flex-col gap-1">
-                  <div className="px-3 py-1.5 text-xs font-semibold text-violet-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
                     功能項目
                   </div>
                   <ul className="flex flex-col gap-1">
@@ -216,7 +216,7 @@ export const AutoCompleteSearch: React.FC<AutoCompleteSearchProps> = ({
                       <li
                         key={func.id}
                         onClick={() => handleFunctionClick(func)}
-                        className="px-4 py-2.5 text-sm text-slate-300 hover:bg-violet-600/20 hover:text-white flex items-center justify-between cursor-pointer transition-colors rounded-lg group"
+                        className="px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-900/40 hover:text-white flex items-center justify-between cursor-pointer transition-colors rounded-lg group"
                       >
                         <div className="flex items-center gap-2">
                           <svg className="w-4 h-4 text-slate-400 group-hover:text-violet-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

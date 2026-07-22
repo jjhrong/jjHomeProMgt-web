@@ -170,7 +170,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
         {/* Upper Section: Avatar, Nickname and Actions */}
         <div className="flex items-center gap-4 mt-2">
           {/* Avatar */}
-          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-violet-500/50 bg-slate-950/50 flex-shrink-0 flex items-center justify-center text-2xl font-bold text-violet-400 shadow-inner">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-500/50 bg-slate-950/50 flex-shrink-0 flex items-center justify-center text-2xl font-bold text-emerald-400 shadow-inner">
             {cardDetails.avatar_url ? (
               <img
                 src={cardDetails.avatar_url}

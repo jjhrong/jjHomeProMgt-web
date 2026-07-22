@@ -262,7 +262,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div 
-          className="absolute right-0 mt-3 sm:w-96 origin-top-right rounded-2xl border border-slate-800/80 bg-slate-900/90 backdrop-blur-md shadow-2xl z-50 transform opacity-100 scale-100 transition-all duration-200"
+          className="absolute right-0 mt-3 sm:w-96 origin-top-right rounded-2xl border border-emerald-900/60 bg-[#12201a]/95 backdrop-blur-md shadow-2xl z-50 transform opacity-100 scale-100 transition-all duration-200"
           style={{
             width: '360px',
             padding: '24px',
@@ -273,11 +273,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         >
           
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 bg-transparent">
+          <div className="flex items-center justify-between pb-3 border-b border-emerald-900/50 bg-transparent">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-slate-200">通知訊息</span>
               {unreadCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-md">
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
                   {unreadCount} 則未讀
                 </span>
               )}
@@ -285,7 +285,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="flex items-center gap-1 text-[11px] font-medium text-purple-400 hover:text-purple-300 transition duration-150 cursor-pointer focus:outline-none"
+                className="flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition duration-150 cursor-pointer focus:outline-none"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 全部標記為已讀

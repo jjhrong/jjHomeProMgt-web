@@ -5,23 +5,23 @@ html {
 }
 
 :root {
-  --bg-primary: #0a0e17;
-  --bg-secondary: #131924;
-  --card-bg: rgba(19, 25, 36, 0.65);
-  --card-border: rgba(255, 255, 255, 0.06);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg-primary: #0c1411;
+  --bg-secondary: #14221c;
+  --card-bg: rgba(20, 34, 28, 0.75);
+  --card-border: rgba(163, 198, 175, 0.15);
+  --text-primary: #f0f5f2;
+  --text-secondary: #a1b5aa;
+  --text-muted: #6e8578;
   
-  --accent-purple: #8b5cf6;
-  --accent-blue: #3b82f6;
-  --accent-green: #10b981;
-  --accent-red: #ef4444;
+  --accent-purple: #7ba88a;
+  --accent-blue: #569280;
+  --accent-green: #6ebf8b;
+  --accent-red: #d97764;
   
-  --neon-purple: 0 0 20px rgba(139, 92, 246, 0.35);
-  --neon-blue: 0 0 20px rgba(59, 130, 246, 0.35);
-  --neon-green: 0 0 20px rgba(16, 185, 129, 0.35);
-  --neon-red: 0 0 20px rgba(239, 68, 68, 0.35);
+  --neon-purple: 0 0 20px rgba(123, 168, 138, 0.35);
+  --neon-blue: 0 0 20px rgba(86, 146, 128, 0.35);
+  --neon-green: 0 0 20px rgba(110, 191, 139, 0.35);
+  --neon-red: 0 0 20px rgba(217, 119, 100, 0.35);
 
   --font-family: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
@@ -32,11 +32,22 @@ html {
   padding: 0;
 }
 
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-primary);
-  background-image: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
-                    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+  background-image: radial-gradient(circle at 10% 20%, rgba(123, 168, 138, 0.08) 0%, transparent 40%),
+                    radial-gradient(circle at 90% 80%, rgba(86, 146, 128, 0.08) 0%, transparent 40%);
   background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
@@ -141,14 +152,14 @@ p {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-purple), #6d28d9);
-  color: white;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, #7ba88a, #4a7558);
+  color: #0b1310;
+  box-shadow: 0 4px 14px rgba(123, 168, 138, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--neon-purple), 0 6px 20px rgba(139, 92, 246, 0.4);
+  box-shadow: var(--neon-purple), 0 6px 20px rgba(123, 168, 138, 0.4);
 }
 
 .btn-primary:active {

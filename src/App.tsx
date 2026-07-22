@@ -6,7 +6,8 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
-import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
+import { IsometricMap } from './components/IsometricMap'
+import { PostBoard } from './components/PostBoard'
 
 const getApiBaseUrl = () => {
   const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
@@ -954,7 +955,6 @@ function App() {
   const [appName, setAppName] = useState('jjHomeProMgt')
   const [is404, setIs404] = useState(false)
   const [currentFunction, setCurrentFunction] = useState<any>(null)
-  const [isValidatingRoute, setIsValidatingRoute] = useState(false)
   const [backendError, setBackendError] = useState<string | null>(null)
   const [hasSettingPermission, setHasSettingPermission] = useState<boolean>(false)
 
@@ -1095,7 +1095,6 @@ function App() {
     if (functionName === '') {
       setIs404(false)
       setCurrentFunction({ name: 'Home', description: '首頁', type: 'HOME', subFunctions: [] })
-      setIsValidatingRoute(false)
       return
     }
 
@@ -1106,7 +1105,6 @@ function App() {
       return
     }
 
-    setIsValidatingRoute(true)
     setIs404(false)
     try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
@@ -1124,8 +1122,6 @@ function App() {
       if (!err.response) {
         setBackendError('網路連線失敗，無法連接到後端伺服器。')
       }
-    } finally {
-      setIsValidatingRoute(false)
     }
   }
 
@@ -1183,9 +1179,10 @@ function App() {
   const renderFunctionBlocks = (func: any) => {
     if (!func) return null
 
+    const isHomeType = func.type === 'HOME' || func.name === 'Home'
     const showFirst = func.name && func.name.toLowerCase() !== 'home'
-    const showSecond = func.name === 'Home' || func.name === 'User' || func.type === 'SETT'
-    const showThird = func.subFunctions && func.subFunctions.length > 0
+    const showSecond = isHomeType || func.name === 'User' || func.type === 'SETT' || func.type === 'PAGE' || func.type === 'POST'
+    const showThird = !isHomeType && func.subFunctions && func.subFunctions.length > 0
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1240,14 +1237,14 @@ function App() {
                 </button>
               </div>
             )}
-            {func.name === 'Home' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', opacity: 0.5, border: '2px dashed var(--card-border)', borderRadius: '16px', margin: '12px 0' }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '16px' }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <p style={{ fontSize: '1rem' }}>主畫面功能按鈕尚未規劃，暫時維持空白</p>
+            {isHomeType && (
+              <div style={{ margin: '12px 0' }}>
+                <IsometricMap
+                  homeFunction={func}
+                  token={token}
+                  apiBaseUrl={API_BASE_URL}
+                  onNavigate={navigateTo}
+                />
               </div>
             )}
             {func.type === 'SETT' && (
@@ -1256,6 +1253,9 @@ function App() {
               ) : (
                 <CRUDTable objectName={func.name.split('_').pop() || 'Config'} token={token} onConfigChange={fetchSystemName} />
               )
+            )}
+            {func.type === 'POST' && (
+              <PostBoard func={func} token={token} apiBaseUrl={API_BASE_URL} user={user} />
             )}
           </div>
         )}
@@ -1510,7 +1510,7 @@ function App() {
 
               {isUserDropdownOpen && (
                 <div 
-                  className="absolute right-0 mt-3 origin-top-right rounded-2xl border border-slate-800/80 bg-slate-900/90 backdrop-blur-md shadow-2xl z-50 overflow-hidden"
+                  className="absolute right-0 mt-3 origin-top-right rounded-2xl border border-emerald-900/60 bg-[#12201a]/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden"
                   style={{
                     width: '320px',
                     padding: '32px',
@@ -1521,11 +1521,11 @@ function App() {
                   }}
                 >
                   {/* User Header */}
-                  <div className="flex flex-col items-center gap-2 pb-5 mb-2 border-b border-slate-800/60">
+                  <div className="flex flex-col items-center gap-2 pb-5 mb-2 border-b border-emerald-900/50">
                     {user.avatarUrl ? (
                       <img className="w-12 h-12 rounded-full border border-white/10" src={user.avatarUrl} alt={user.nickname} />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center font-bold text-lg text-white">
+                      <div className="w-12 h-12 rounded-full bg-[#5ba878] flex items-center justify-center font-bold text-lg text-slate-950">
                         {user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}
                       </div>
                     )}
@@ -1539,9 +1539,9 @@ function App() {
                       setIsUserDropdownOpen(false)
                       navigateTo('/User')
                     }}
-                    className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
+                    className="flex items-center gap-3 px-5 py-3 text-sm text-emerald-200 hover:bg-emerald-950/60 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
                   >
-                    <User className="h-4 w-4 text-slate-400" />
+                    <User className="h-4 w-4 text-emerald-400" />
                     個人檔案
                   </button>
                   
@@ -1551,21 +1551,21 @@ function App() {
                         setIsUserDropdownOpen(false)
                         navigateTo('/Setting')
                       }}
-                      className="flex items-center gap-3 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
+                      className="flex items-center gap-3 px-5 py-3 text-sm text-emerald-200 hover:bg-emerald-950/60 hover:text-white rounded-lg transition-colors text-left w-full cursor-pointer"
                     >
-                      <Settings className="h-4 w-4 text-slate-400" />
+                      <Settings className="h-4 w-4 text-emerald-400" />
                       設定
                     </button>
                   )}
 
-                  <hr className="border-slate-800/50 my-1" />
+                  <hr className="border-emerald-900/40 my-1" />
 
                   <button
                     onClick={() => {
                       setIsUserDropdownOpen(false)
                       logout()
                     }}
-                    className="flex items-center gap-3 px-5 py-3 text-sm text-rose-450 hover:bg-rose-955/20 hover:text-rose-350 rounded-lg transition-colors text-left w-full cursor-pointer"
+                    className="flex items-center gap-3 px-5 py-3 text-sm text-rose-400 hover:bg-rose-955/20 hover:text-rose-300 rounded-lg transition-colors text-left w-full cursor-pointer"
                   >
                     <LogOut className="h-4 w-4 text-rose-400" />
                     登出
@@ -1615,13 +1615,8 @@ function App() {
                   返回首頁
                 </button>
               </div>
-            ) : isValidatingRoute ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', opacity: 0.6 }}>
-                <div className="spinner" style={{ width: '30px', height: '30px', color: 'var(--accent-purple)', marginBottom: '16px' }}></div>
-                <p style={{ fontSize: '0.95rem' }}>載入並驗證系統功能選單中...</p>
-              </div>
             ) : (
-              renderFunctionBlocks(homeFunction)
+              renderFunctionBlocks(currentFunction || homeFunction)
             )}
           </div>
         )}
