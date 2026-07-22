@@ -52,7 +52,7 @@ interface CommentItem {
   avatarUrl?: string
 }
 
-export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user }) => {
+export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user: _user }) => {
   const [posts, setPosts] = useState<PostItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +75,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
 
   // Fetch posts for current function
   const fetchPosts = async () => {
-    if (!token || !func?.id) return
+    if (!token || (!func?.id && !func?.name)) return
     setLoading(true)
     setError(null)
     try {
@@ -85,10 +85,10 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
         headers: { Authorization: `Bearer ${token}` },
       })
       const list = res.data || []
-      // Sort posts: Pinned (status & 1 === 1) first, then by lmDate descending
+      // Sort posts: Pinned (status & 4 === 4) first, then by lmDate descending
       list.sort((a: PostItem, b: PostItem) => {
-        const isPinnedA = (a.status & 1) === 1
-        const isPinnedB = (b.status & 1) === 1
+        const isPinnedA = (a.status & 4) === 4
+        const isPinnedB = (b.status & 4) === 4
         if (isPinnedA && !isPinnedB) return -1
         if (!isPinnedA && isPinnedB) return 1
         return new Date(b.lmDate).getTime() - new Date(a.lmDate).getTime()
@@ -104,7 +104,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
 
   useEffect(() => {
     fetchPosts()
-  }, [func.id, func.name, token])
+  }, [func?.id, func?.name, token])
 
   // Handle Create Post
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -126,7 +126,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
           content: newContent,
           coverUrl: newCoverUrl,
           linkUrl: newLinkUrl,
-          status: 0,
+          status: 2, // ACTIVE (bit 1, value 2)
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -367,7 +367,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
       {!loading && !error && posts.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {posts.map((post) => {
-            const isPinned = (post.status & 1) === 1
+            const isPinned = (post.status & 4) === 4
             const isCommentsOpen = !!expandedComments[post.id]
             const postComments = commentsMap[post.id] || []
 

@@ -6,6 +6,7 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
+import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
 import { IsometricMap } from './components/IsometricMap'
 import { PostBoard } from './components/PostBoard'
 
@@ -1094,7 +1095,18 @@ function App() {
     let functionName = path.slice(1)
     if (functionName === '') {
       setIs404(false)
-      setCurrentFunction({ name: 'Home', description: '首頁', type: 'HOME', subFunctions: [] })
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+          headers: {
+            Authorization: `Bearer ${tokenVal}`
+          }
+        })
+        const funcData = response.data
+        setCurrentFunction(normalizeStatus(funcData))
+        setBackendError(null)
+      } catch (err) {
+        setCurrentFunction(homeFunction)
+      }
       return
     }
 
