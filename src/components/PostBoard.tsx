@@ -39,6 +39,7 @@ interface PostItem {
   lmDate: string
   likesCount: number
   isLiked: boolean
+  commentsCount?: number
 }
 
 interface CommentItem {
@@ -218,6 +219,9 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
         ...prev,
         [postId]: [...(prev[postId] || []), newComment],
       }))
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p))
+      )
       setCommentInputs((prev) => ({ ...prev, [postId]: '' }))
     } catch (err) {
       console.error('Failed to add comment:', err)
@@ -505,7 +509,9 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-950/40 text-emerald-300/80 hover:bg-emerald-900/60 hover:text-emerald-200 border border-emerald-500/20 transition-all cursor-pointer"
                     >
                       <MessageSquare className="w-4 h-4" />
-                      <span>討論區</span>
+                      <span>
+                        回覆 ({commentsMap[post.id] ? commentsMap[post.id].length : (post.commentsCount || 0)})
+                      </span>
                     </button>
                   </div>
 
@@ -532,7 +538,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                 {isCommentsOpen && (
                   <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed rgba(163, 198, 175, 0.15)' }}>
                     <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#a1b5aa', marginBottom: '12px' }}>
-                      討論回應 ({postComments.length})
+                      回覆 ({postComments.length})
                     </h4>
 
                     {loadingComments[post.id] ? (

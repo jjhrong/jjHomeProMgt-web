@@ -20,9 +20,9 @@ export interface BuildingSpriteButtonProps {
 export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   mapX,
   mapY,
-  sheet_id: _sheet_id = '01',
+  sheet_id = '1',
   spriteCol = 0,
-  spriteRow: _spriteRow = 0,
+  spriteRow = 0,
   buildingName,
   hasPermission = true,
   tileWidth: _tileWidth = 96,
@@ -37,10 +37,23 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   // Z-Index calculation for painter's algorithm depth occlusion
   const depthIndex = (mapX + mapY) * 10 + mapX + 5
 
-  // CSS Sprite background position for 10-column sprite sheet:
+  // CSS Sprite 10-column mapping definition (Row 0):
+  // Col 0 (第 1 張): 泥土 (Dirt)
+  // Col 1 (第 2 張): 草地 (Grass)
+  // Col 2 (第 3 張): 樹木1 (Tree 1)
+  // Col 3 (第 4 張): 樹木2 (Tree 2)
+  // Col 4 (第 5 張): 樹木3 (Tree 3)
+  // Col 5 (第 6 張): 森林 (Forest)
+  // Col 6 (第 7 張): 矮房 (Small House)
+  // Col 7 (第 8 張): 別墅 (Villa)
+  // Col 8 (第 9 張): 大樓 (Office Building)
+  // Col 9 (第 10 張): 摩天大樓 (Skyscraper)
   const bgPositionPercentX = (spriteCol / 9) * 100
-  // Align Y to 100% so the bottom base of the sprite aligns to the bottom of the container!
-  const spriteImageUrl = '/buildings_1.webp'
+  const bgPositionPercentY = (spriteRow / 13) * 100
+
+  // Dynamic sprite image path reading sheet_id from remark (e.g. /buildings_1.webp or /sprites/buildings_1.webp)
+  const cleanSheetId = String(sheet_id || '1').replace(/^0+/, '') || '1'
+  const spriteImageUrl = `/buildings_${cleanSheetId}.webp`
 
   return (
     <div
@@ -109,9 +122,10 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
         style={{
           width: `${spriteWidth}px`,
           height: `${spriteHeight}px`,
+          backgroundColor: 'transparent',
           backgroundImage: imageError ? 'none' : `url(${spriteImageUrl})`,
           backgroundSize: '1000% auto',
-          backgroundPosition: `${bgPositionPercentX}% 100%`,
+          backgroundPosition: `${bgPositionPercentX}% ${bgPositionPercentY}%`,
           backgroundRepeat: 'no-repeat',
           position: 'relative',
           display: 'flex',

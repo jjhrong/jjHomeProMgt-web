@@ -100,19 +100,6 @@ function orderSNToRelativeCoord(orderSN: number): { dx: number; dy: number } {
 // Module-level cache to remember map pan positions across component remounts and feature transitions
 const panCache = new Map<string, { x: number; y: number }>()
 
-// Sprite column selection for first row (Row 0):
-// Col 0: 泥土 | Col 1: 草地1 | Col 2: 草地2 | Col 3: 樹木1 | Col 4: 樹木2 | Col 5: 森林 | Col 6: 矮房 | Col 7: 別墅 | Col 8: 大樓 | Col 9: 摩天大樓
-const getBuildingSpriteCol = (orderSn: number, name: string = ''): number => {
-  const lower = name.toLowerCase()
-  if (lower.includes('tree') || lower.includes('樹')) return 3
-  if (lower.includes('forest') || lower.includes('森')) return 5
-  if (lower.includes('house') || lower.includes('矮房') || lower.includes('小房')) return 6
-  if (lower.includes('villa') || lower.includes('別墅')) return 7
-  if (lower.includes('office') || lower.includes('大樓')) return 8
-  if (lower.includes('tower') || lower.includes('摩天')) return 9
-  return 6 + (orderSn % 4)
-}
-
 export const IsometricMap: React.FC<IsometricMapProps> = ({
   homeFunction,
   token,
@@ -332,6 +319,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   }
 
   const [adjacentMapInfos, setAdjacentMapInfos] = useState<AdjacentMapInfo[]>([])
+  const [buildingSpriteMap, setBuildingSpriteMap] = useState<Map<string, { sheet_id: string; spriteCol: number; spriteRow: number }>>(new Map())
 
   // Set default center only if mapKey is not yet cached
   useEffect(() => {
@@ -379,14 +367,46 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           return (statusVal & 2) === 2
         })
 
+        // Build sprite configuration map for all AREA_TRANSITION entries
+        const spriteMap = new Map<string, { sheet_id: string; spriteCol: number; spriteRow: number }>()
+
+        const registerSpriteConfig = (key: string, cfg: { sheet_id: string; spriteCol: number; spriteRow: number }) => {
+          if (!key) return
+          spriteMap.set(key, cfg)
+          spriteMap.set(key.toLowerCase(), cfg)
+        }
+
+        for (const trans of activeTransitions) {
+          const mapBID = trans.map_b_id || trans.mapBID || trans.MapBID
+          const remarkRaw = trans.remark || trans.Remark
+          if (mapBID && remarkRaw) {
+            try {
+              const parsed = typeof remarkRaw === 'string' ? JSON.parse(remarkRaw) : remarkRaw
+              if (parsed && typeof parsed.spriteCol === 'number') {
+                const config = {
+                  sheet_id: String(parsed.sheet_id || '1'),
+                  spriteCol: parsed.spriteCol,
+                  spriteRow: parsed.spriteRow || 0,
+                }
+                registerSpriteConfig(String(mapBID), config)
+              }
+            } catch (err) {
+              // Ignore non-JSON remark strings
+            }
+          }
+        }
+
         const defaultDirs: ('N' | 'E' | 'S' | 'W')[] = ['N', 'E', 'S', 'W']
         const list: AdjacentMapInfo[] = []
 
         for (let i = 0; i < activeTransitions.length; i++) {
           const trans = activeTransitions[i]
           const targetFuncID = trans.map_b_id || trans.mapBID || trans.MapBID
-          const rawDir = trans.remark || trans.Remark || trans.description || defaultDirs[i % 4]
-          const dir = rawDir.trim().toUpperCase() as 'N' | 'S' | 'E' | 'W'
+          const remarkRaw = trans.remark || trans.Remark
+          const rawDir = remarkRaw || trans.description || defaultDirs[i % 4]
+          const dir = typeof rawDir === 'string' && ['N', 'S', 'E', 'W'].includes(rawDir.trim().toUpperCase())
+            ? (rawDir.trim().toUpperCase() as 'N' | 'S' | 'E' | 'W')
+            : defaultDirs[i % 4]
           try {
             let funcData: any = null
             try {
@@ -410,6 +430,23 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 title: funcData.description || funcData.name,
                 hasPermission: true,
               })
+
+              if (remarkRaw) {
+                try {
+                  const parsed = typeof remarkRaw === 'string' ? JSON.parse(remarkRaw) : remarkRaw
+                  if (parsed && typeof parsed.spriteCol === 'number') {
+                    const config = {
+                      sheet_id: String(parsed.sheet_id || '1'),
+                      spriteCol: parsed.spriteCol,
+                      spriteRow: parsed.spriteRow || 0,
+                    }
+                    registerSpriteConfig(String(funcData.id), config)
+                    registerSpriteConfig(String(funcData.name), config)
+                  }
+                } catch (e) {
+                  // Ignore
+                }
+              }
             }
           } catch (err) {
             // Permission failed or function inactive
@@ -430,6 +467,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
         if (isMounted) {
           setAdjacentMapInfos(list)
+          setBuildingSpriteMap(spriteMap)
         }
       } catch (err) {
         console.error('Failed to fetch adjacent maps for T-Bar signposts:', err)
@@ -1018,22 +1056,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           const depthIndex = (tile.gridX + tile.gridY) * 10 + tile.gridX
 
 
-          const hasTree =
-            !tile.isDirt &&
-            !tile.building &&
-            ((tile.gridX * 37 + tile.gridY * 17 + 13) % 100) < 10
-
-          const treeSpriteCol = (tile.gridX * 19 + tile.gridY * 23) % 2 === 0 ? 3 : 4
-
           // Ground tile sprite column index from Row 0:
-          // Col 0: 第1張 泥土 (Dirt)
-          // Col 1: 第2張 草地1 (Grass 1)
-          // Col 3/4: 10%機率直接置換為 第4/5張 樹木1/樹木2 (Tree Block)
-          const groundSpriteCol = tile.isDirt
-            ? 0
-            : hasTree
-            ? treeSpriteCol
-            : 1
+          // Col 0: 第 1 張貼圖 - 泥土 (Dirt) (建築物下方及周圍)
+          // Col 1: 第 2 張貼圖 - 草地 (Grass) (一般開闊地表)
+          const groundSpriteCol = (tile.building || tile.isDirt) ? 0 : 1
 
           return (
             <div
@@ -1050,25 +1076,23 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Ground Tile 3D Block Sprite (有建築物就不渲染地表，無建築物才渲染地表/樹木) */}
-              {!tile.building && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    bottom: '-24px',
-                    transform: 'translate(-50%, 0)',
-                    width: `${TILE_WIDTH + 14}px`,
-                    height: '115px',
-                    backgroundImage: 'url(/buildings_1.webp)',
-                    backgroundSize: '1000% auto',
-                    backgroundPosition: `${(groundSpriteCol / 9) * 100}% 0%`,
-                    backgroundRepeat: 'no-repeat',
-                    pointerEvents: 'none',
-                    opacity: isSelected ? 0.75 : 1.0,
-                  }}
-                />
-              )}
+              {/* Ground Tile 3D Block Sprite (第 1 張貼圖: 泥土, 第 2 張貼圖: 草地) */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: '-24px',
+                  transform: 'translate(-50%, 0)',
+                  width: `${TILE_WIDTH + 14}px`,
+                  height: '115px',
+                  backgroundImage: 'url(/buildings_1.webp)',
+                  backgroundSize: '1000% auto',
+                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 100%`,
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  opacity: isSelected ? 0.75 : 1.0,
+                }}
+              />
 
               {/* Phase 2 Placement Mode Cottage Preview (Col 6 矮房貼圖動態預覽) */}
               {isPlacementMode &&
@@ -1082,9 +1106,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       transform: 'translate(-50%, 0)',
                       width: '110px',
                       height: '140px',
+                      backgroundColor: 'transparent',
                       backgroundImage: 'url(/buildings_1.webp)',
                       backgroundSize: '1000% auto',
-                      backgroundPosition: `${(6 / 9) * 100}% 100%`,
+                      backgroundPosition: `${(6 / 9) * 100}% 0%`,
                       backgroundRepeat: 'no-repeat',
                       pointerEvents: 'none',
                       zIndex: depthIndex + 20,
@@ -1132,29 +1157,46 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 )}
               </svg>
 
-              {/* Building Texture / Sprite Button (第一排貼圖: 樹木1/樹木2/森林/矮房/別墅/大樓/摩天大樓) */}
-              {tile.building && (
-                <BuildingSpriteButton
-                  mapX={tile.gridX}
-                  mapY={tile.gridY}
-                  sheet_id={(tile.building as any).sheet_id || '1'}
-                  spriteCol={
-                    (tile.building as any).spriteCol ??
-                    getBuildingSpriteCol(
-                      tile.building.orderSn,
-                      tile.building.description || tile.building.name
-                    )
-                  }
-                  spriteRow={0}
-                  buildingName={tile.building.description || tile.building.name}
-                  hasPermission={(tile.building as any).hasPermission}
-                  tileWidth={TILE_WIDTH}
-                  tileHeight={TILE_HEIGHT}
-                  spriteWidth={100}
-                  spriteHeight={100}
-                  onClick={(e) => handleBuildingClick(e, tile.building!, tile)}
-                />
-              )}
+              {/* Building Texture / Sprite Button (若串不出maps裡的AREA_TRANSITION就用第8張貼圖; 串得出來就用remark裡的sheet_id/spriteCol/spriteRow) */}
+              {tile.building && (() => {
+                const bId = String(tile.building.id || '')
+                const bName = String(tile.building.name || '')
+                const spriteConfig =
+                  buildingSpriteMap.get(bId) ||
+                  buildingSpriteMap.get(bId.toLowerCase()) ||
+                  buildingSpriteMap.get(bName) ||
+                  buildingSpriteMap.get(bName.toLowerCase()) ||
+                  (typeof (tile.building as any).spriteCol === 'number'
+                    ? {
+                        sheet_id: String((tile.building as any).sheet_id || '1'),
+                        spriteCol: Number((tile.building as any).spriteCol),
+                        spriteRow: Number((tile.building as any).spriteRow || 0),
+                      }
+                    : undefined)
+
+                // 串得出 spriteCol 及 spriteRow 姿態就依照對應貼圖 (sheet_id / spriteCol / spriteRow)
+                // 若串不出 maps 裡的 AREA_TRANSITION 則備援第 8 張貼圖 (spriteCol = 7)
+                const sheetId = spriteConfig ? spriteConfig.sheet_id : '1'
+                const spriteCol = spriteConfig ? spriteConfig.spriteCol : 7
+                const spriteRow = spriteConfig ? spriteConfig.spriteRow : 0
+
+                return (
+                  <BuildingSpriteButton
+                    mapX={tile.gridX}
+                    mapY={tile.gridY}
+                    sheet_id={sheetId}
+                    spriteCol={spriteCol}
+                    spriteRow={spriteRow}
+                    buildingName={tile.building.description || tile.building.name}
+                    hasPermission={(tile.building as any).hasPermission}
+                    tileWidth={TILE_WIDTH}
+                    tileHeight={TILE_HEIGHT}
+                    spriteWidth={100}
+                    spriteHeight={100}
+                    onClick={(e) => handleBuildingClick(e, tile.building!, tile)}
+                  />
+                )
+              })()}
             </div>
           )
         })}
