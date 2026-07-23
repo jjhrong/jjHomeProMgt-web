@@ -786,12 +786,16 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               {/* Dropdown Menu Popup */}
               {isDropdownOpen && (
                 <div
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onWheel={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   style={{
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
                     left: 0,
                     minWidth: '240px',
-                    maxHeight: '360px',
+                    maxHeight: '60vh',
                     overflowY: 'auto',
                     borderRadius: '16px',
                     background: 'rgba(15, 25, 20, 0.95)',
@@ -809,10 +813,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   {/* Group 1: 我的最愛 */}
                   {hasFavorites && (
                     <>
-                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>我的最愛</span>
-                      </div>
                       {favorites.map((fav) => (
                         <button
                           key={fav.id}
@@ -859,10 +859,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   {hasLocalBuildings && (
                     <>
                       {hasFavorites && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.15)', margin: '4px 0' }} />}
-                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Building className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>本地建築</span>
-                      </div>
                       {localBuildings.map((sub) => (
                         <button
                           key={sub.id}
@@ -900,10 +896,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   {hasNeighborMaps && (
                     <>
                       {(hasFavorites || hasLocalBuildings) && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.15)', margin: '4px 0' }} />}
-                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>相鄰大地圖</span>
-                      </div>
                       {neighborMaps.map((nm) => {
                         const dirName =
                           nm.direction === 'N'
@@ -960,7 +952,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   {hasAdminOptions && (
                     <>
                       {(hasFavorites || hasLocalBuildings || hasNeighborMaps) && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />}
-                      <div style={{ padding: '4px 0' }}>
+                      <div style={{ padding: '2px 0' }}>
                         <button
                           type="button"
                           onClick={handleOpenPhase1}
