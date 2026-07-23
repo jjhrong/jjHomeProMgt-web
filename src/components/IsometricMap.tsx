@@ -31,6 +31,13 @@ interface SubFunction {
   hasPermission?: boolean
 }
 
+interface NeighborMap {
+  id: string
+  name: string
+  title?: string
+  direction: string
+}
+
 interface HomeFunction {
   id: string
   name: string
@@ -39,6 +46,7 @@ interface HomeFunction {
   width?: number
   height?: number
   subFunctions: SubFunction[]
+  neighborMaps?: NeighborMap[]
 }
 
 interface IsometricMapProps {
@@ -879,8 +887,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 gap: '4px',
               }}
             >
-              <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>
-                快捷區域選單
+              {/* Section A: Building Sub-functions */}
+              <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.5px' }}>
+                區塊 A：建築子功能
               </div>
 
               {permittedSubFunctions.map((sub) => (
@@ -915,8 +924,70 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               ))}
 
               {permittedSubFunctions.length === 0 && (
-                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#64748b' }}>
-                  尚無可用快捷建築
+                <div style={{ padding: '4px 12px 6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
+                  尚無可用建築子功能
+                </div>
+              )}
+
+              {/* Section B: Neighbor Maps */}
+              <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />
+              <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.5px' }}>
+                區塊 B：相鄰大地圖
+              </div>
+
+              {homeFunction.neighborMaps && homeFunction.neighborMaps.length > 0 ? (
+                homeFunction.neighborMaps.map((nm) => {
+                  const dirName =
+                    nm.direction === 'N'
+                      ? '北方'
+                      : nm.direction === 'E'
+                      ? '東方'
+                      : nm.direction === 'S'
+                      ? '南方'
+                      : nm.direction === 'W'
+                      ? '西方'
+                      : '相鄰區域'
+
+                  return (
+                    <button
+                      key={nm.id || nm.name}
+                      type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false)
+                        setFogState('closing')
+                        setTimeout(() => {
+                          setFogState('covered')
+                          onNavigate(`/${nm.name}`)
+                        }, 800)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#e2e8f0',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      className="hover:bg-emerald-950/60 hover:text-emerald-300"
+                    >
+                      <Compass className="w-4 h-4 text-emerald-400" />
+                      <span>
+                        前往{dirName}：{nm.title || nm.name}
+                      </span>
+                    </button>
+                  )
+                })
+              ) : (
+                <div style={{ padding: '4px 12px 6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
+                  尚無連接相鄰區域
                 </div>
               )}
 

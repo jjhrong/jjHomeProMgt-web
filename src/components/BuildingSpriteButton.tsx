@@ -118,7 +118,8 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
             ? '1px solid rgba(239, 68, 68, 0.4)'
             : '1px solid rgba(163, 198, 175, 0.3)',
           marginBottom: '4px',
-          transition: 'all 0.2s ease',
+          opacity: isHovered ? 1.0 : 0.5,
+          transition: 'opacity 0.3s ease-in-out, all 0.2s ease',
         }}
       >
         {hasPermission === false ? (
