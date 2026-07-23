@@ -1308,9 +1308,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Notice Board Signboard Box (只扭曲面板版面，向左下對齊) */}
+                {/* Notice Board Signboard Box (z-index: 10 確保遮蓋腳架頂端) */}
                 <div
                   style={{
+                    position: 'relative',
+                    zIndex: 10,
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
                     border: '2px solid #34d399',
                     filter:
@@ -1348,72 +1350,86 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   </div>
                 </div>
 
-                {/* Dual Pillar Legs (告示牌 左右雙腳架與深灰色幾何厚度) */}
-                <div
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '0 20px',
-                    marginTop: '-2px',
-                  }}
-                >
-                  {/* Left Support Leg */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      filter:
-                        'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '8px',
-                        height: '65px',
-                        background: '#475569',
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '8px',
-                        background: '#334155',
-                        borderRadius: '3px',
-                        border: '1px solid #64748b',
-                      }}
-                    />
-                  </div>
+                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，依照面板斜度調整各自 top 與高度) */}
+                {(() => {
+                  const isPositiveSkew = adj.dir === 'E' || adj.dir === 'N'
+                  const leftMarginTop = isPositiveSkew ? '-42px' : '38px'
+                  const leftPoleHeight = isPositiveSkew ? '105px' : '25px'
+                  const rightMarginTop = isPositiveSkew ? '38px' : '-42px'
+                  const rightPoleHeight = isPositiveSkew ? '25px' : '105px'
 
-                  {/* Right Support Leg */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      filter:
-                        'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
-                    }}
-                  >
+                  return (
                     <div
                       style={{
-                        width: '8px',
-                        height: '65px',
-                        background: '#475569',
+                        position: 'relative',
+                        zIndex: 1,
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '0 24px',
+                        pointerEvents: 'none',
                       }}
-                    />
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '8px',
-                        background: '#334155',
-                        borderRadius: '3px',
-                        border: '1px solid #64748b',
-                      }}
-                    />
-                  </div>
-                </div>
+                    >
+                      {/* Left Support Leg */}
+                      <div
+                        style={{
+                          marginTop: leftMarginTop,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          filter:
+                            'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '8px',
+                            height: leftPoleHeight,
+                            background: '#475569',
+                          }}
+                        />
+                        <div
+                          style={{
+                            width: '22px',
+                            height: '8px',
+                            background: '#334155',
+                            borderRadius: '3px',
+                            border: '1px solid #64748b',
+                          }}
+                        />
+                      </div>
+
+                      {/* Right Support Leg */}
+                      <div
+                        style={{
+                          marginTop: rightMarginTop,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          filter:
+                            'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '8px',
+                            height: rightPoleHeight,
+                            background: '#475569',
+                          }}
+                        />
+                        <div
+                          style={{
+                            width: '22px',
+                            height: '8px',
+                            background: '#334155',
+                            borderRadius: '3px',
+                            border: '1px solid #64748b',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             )
           })
