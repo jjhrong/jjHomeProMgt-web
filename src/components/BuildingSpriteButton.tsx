@@ -135,24 +135,17 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
           width: '100px',      // 1. 強制鎖定單格寬度 (對應 1000px 的 1/10)
           height: `${(ROW_Y_OFFSETS[spriteRow + 1] - ROW_Y_OFFSETS[spriteRow])}px`,
           backgroundColor: 'transparent',
-
-          bottom: '20px',
+          bottom: '0px',
           transform: 'scaleY(0.9)',
           transformOrigin: 'bottom center', // 🔥 絕對不能漏掉這行！
-
           backgroundImage: imageError ? 'none' : `url(${spriteImageUrl})`,
-          // 4. 強制給定整張雪碧圖的尺寸 (維持 10 欄寬)
           backgroundSize: '1000px auto',
-
-          // 5. 放棄 bgPositionPercent，直接使用查表字典的絕對像素 px 定位
-          backgroundPosition: `-${spriteCol * 100}px ${(ROW_Y_OFFSETS[spriteRow]) || 0}px`,
-
+          backgroundPosition: `-${20 + spriteCol * 96}px ${(ROW_Y_OFFSETS[spriteRow]) || 0}px`,
           backgroundRepeat: 'no-repeat',
           position: 'relative',
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
-          // 移除原本造成錯位的 bottom: '-10px'
         }}
       >
         {/* Fallback procedural 3D building vector graphic if PNG sprite image is not yet loaded */}

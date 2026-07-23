@@ -100,6 +100,17 @@ function orderSNToRelativeCoord(orderSN: number): { dx: number; dy: number } {
 // Module-level cache to remember map pan positions across component remounts and feature transitions
 const panCache = new Map<string, { x: number; y: number }>()
 
+const BUILDING_SPRITE_OPTIONS = [
+  { label: '矮房', spriteCol: 6, spriteRow: 0 },
+  { label: '別墅', spriteCol: 7, spriteRow: 0 },
+  { label: '大樓', spriteCol: 8, spriteRow: 0 },
+  { label: '摩天大樓', spriteCol: 9, spriteRow: 0 },
+  { label: '樹木1', spriteCol: 2, spriteRow: 0 },
+  { label: '樹木2', spriteCol: 3, spriteRow: 0 },
+  { label: '樹木3', spriteCol: 4, spriteRow: 0 },
+  { label: '森林', spriteCol: 5, spriteRow: 0 },
+]
+
 export const IsometricMap: React.FC<IsometricMapProps> = ({
   homeFunction,
   token,
@@ -131,6 +142,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     name: '',
     description: '',
     type: 'PAGE',
+    spriteCol: 6,
+    spriteRow: 0,
   })
   const [phase1Error, setPhase1Error] = useState('')
 
@@ -140,6 +153,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     name: string
     description: string
     type: string
+    spriteCol: number
+    spriteRow: number
   } | null>(null)
   const [hoverGrid, setHoverGrid] = useState<{ gridX: number; gridY: number } | null>(null)
   const [lockedGrid, setLockedGrid] = useState<{ gridX: number; gridY: number } | null>(null)
@@ -565,7 +580,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
   const handleOpenPhase1 = () => {
     setIsDropdownOpen(false)
-    setNewBuildingParams({ name: '', description: '', type: 'PAGE' })
+    setNewBuildingParams({ name: '', description: '', type: 'PAGE', spriteCol: 6, spriteRow: 0 })
     setPhase1Error('')
     setIsPhase1ModalOpen(true)
   }
@@ -574,6 +589,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     const name = newBuildingParams.name.trim()
     const description = newBuildingParams.description.trim()
     const funcType = newBuildingParams.type.toUpperCase()
+    const spriteCol = typeof newBuildingParams.spriteCol === 'number' ? newBuildingParams.spriteCol : 6
+    const spriteRow = typeof newBuildingParams.spriteRow === 'number' ? newBuildingParams.spriteRow : 0
 
     if (!name) {
       setPhase1Error('請輸入功能英文名稱 (Name)。')
@@ -593,7 +610,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     }
 
     setIsPhase1ModalOpen(false)
-    setPlacementData({ name, description, type: funcType })
+    setPlacementData({ name, description, type: funcType, spriteCol, spriteRow })
     setIsPlacementMode(true)
     setLockedGrid(null)
     setHoverGrid(null)
@@ -612,7 +629,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           p_id: homeFunction.id,
           mapX: lockedGrid.gridX,
           mapY: lockedGrid.gridY,
-          spriteCol: 6,
+          spriteCol: placementData.spriteCol ?? 6,
+          spriteRow: placementData.spriteRow ?? 0,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -1081,13 +1099,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 style={{
                   position: 'absolute',
                   left: '50%',
-                  bottom: '-30px',
+                  bottom: '-50px',
                   transform: 'translate(-50%, 0) scaleY(0.9)',
                   width: `${TILE_WIDTH + 14}px`,
                   height: '115px',
                   backgroundImage: 'url(/buildings_1.webp)',
                   backgroundSize: '1000% auto',
-                  backgroundPosition: `${3 + (groundSpriteCol / 10) * 100}% 100%`,
+                  backgroundPosition: `${3 + (groundSpriteCol == 0 ? -0.005 : groundSpriteCol / 10) * 100}% 100%`,
                   backgroundRepeat: 'no-repeat',
                   pointerEvents: 'none',
                   opacity: isSelected ? 0.75 : 1.0,
@@ -1109,7 +1127,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       backgroundColor: 'transparent',
                       backgroundImage: 'url(/buildings_1.webp)',
                       backgroundSize: '1000% auto',
-                      backgroundPosition: `${(6 / 10) * 100}% 100%`,
+                      backgroundPosition: `${((placementData?.spriteCol ?? 6) / 10) * 100}% 100%`,
                       backgroundRepeat: 'no-repeat',
                       pointerEvents: 'none',
                       zIndex: depthIndex + 20,
@@ -1544,6 +1562,63 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   <option value="POST">POST (動態貼文牆)</option>
                   <option value="SETT">SETT (系統設定頁面)</option>
                 </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
+                  選擇建築外觀 (Building Appearance)
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '10px',
+                    overflowX: 'auto',
+                    padding: '6px 4px 12px 4px',
+                  }}
+                  className="custom-scrollbar"
+                >
+                  {BUILDING_SPRITE_OPTIONS.map((opt) => {
+                    const isSelected =
+                      newBuildingParams.spriteCol === opt.spriteCol && newBuildingParams.spriteRow === opt.spriteRow
+                    return (
+                      <button
+                        key={`${opt.spriteCol}-${opt.spriteRow}`}
+                        type="button"
+                        onClick={() =>
+                          setNewBuildingParams((prev) => ({ ...prev, spriteCol: opt.spriteCol, spriteRow: opt.spriteRow }))
+                        }
+                        style={{
+                          flexShrink: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          borderRadius: '12px',
+                          background: isSelected ? 'rgba(110, 191, 139, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                          border: isSelected ? '2px solid #6ebf8b' : '1px solid rgba(255, 255, 255, 0.1)',
+                          boxShadow: isSelected ? '0 0 12px rgba(110, 191, 139, 0.4)' : 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '46px',
+                            height: '46px',
+                            backgroundImage: 'url(/buildings_1.webp)',
+                            backgroundSize: '1000% auto',
+                            backgroundPosition: `${(opt.spriteCol / 10) * 100}% 100%`,
+                            backgroundRepeat: 'no-repeat',
+                          }}
+                        />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isSelected ? '#6ebf8b' : '#94a3b8' }}>
+                          {opt.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
