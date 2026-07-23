@@ -15,6 +15,7 @@ import {
   Plus,
   X,
   Hammer,
+  Star,
 } from 'lucide-react'
 import { BuildingSpriteButton } from './BuildingSpriteButton'
 import { FogOverlay } from './FogOverlay'
@@ -29,6 +30,22 @@ interface SubFunction {
   description: string
   status: any
   hasPermission?: boolean
+}
+
+interface FavoriteFunction {
+  id: string
+  name: string
+  description: string
+  type: string
+  p_id?: string
+  pId?: string
+  hasPermission?: boolean
+}
+
+interface AdminOption {
+  key: string
+  title: string
+  allowed: boolean
 }
 
 interface NeighborMap {
@@ -46,7 +63,10 @@ interface HomeFunction {
   width?: number
   height?: number
   subFunctions: SubFunction[]
+  favorites?: FavoriteFunction[]
+  localBuildings?: SubFunction[]
   neighborMaps?: NeighborMap[]
+  adminOptions?: AdminOption[]
 }
 
 interface IsometricMapProps {
@@ -717,189 +737,261 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           </span>
         </div>
 
-        {/* Quick Navigation Dropdown Button */}
-        <div ref={dropdownRef} style={{ position: 'relative' }}>
-          <button
-            type="button"
-            onClick={() => setIsDropdownOpen((prev) => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(31, 58, 44, 0.9) 0%, rgba(17, 34, 26, 0.9) 100%)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(110, 191, 139, 0.4)',
-              color: '#ffffff',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <Building2 className="w-4 h-4 text-emerald-300" />
-            <span>直接前往...</span>
-            <ChevronDown className="w-4 h-4 text-emerald-400 opacity-80" />
-          </button>
+        {/* Quick Navigation Dropdown (DirectGoMenu) */}
+        {(() => {
+          const favorites = homeFunction.favorites || []
+          const localBuildings =
+            homeFunction.localBuildings && homeFunction.localBuildings.length > 0
+              ? homeFunction.localBuildings
+              : permittedSubFunctions
+          const neighborMaps = homeFunction.neighborMaps || []
+          const adminOpts = homeFunction.adminOptions || []
+          const hasAdminOptions = canCreateBuilding || (adminOpts && adminOpts.some((a) => a.allowed))
 
-          {/* Dropdown Menu Popup */}
-          {isDropdownOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                left: 0,
-                minWidth: '220px',
-                borderRadius: '16px',
-                background: 'rgba(15, 25, 20, 0.95)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(163, 198, 175, 0.3)',
-                boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65)',
-                padding: '8px',
-                zIndex: 200,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}
-            >
-              {/* Section A: Building Sub-functions */}
-              <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.5px' }}>
-                區塊 A：建築子功能
-              </div>
+          const hasFavorites = favorites.length > 0
+          const hasLocalBuildings = localBuildings.length > 0
+          const hasNeighborMaps = neighborMaps.length > 0
 
-              {permittedSubFunctions.map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() => {
-                    setIsDropdownOpen(false)
-                    onNavigate(`/${sub.name}`)
-                  }}
+          const showDirectGoButton = hasFavorites || hasLocalBuildings || hasNeighborMaps || hasAdminOptions
+
+          if (!showDirectGoButton) return null
+
+          return (
+            <div ref={dropdownRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, rgba(31, 58, 44, 0.9) 0%, rgba(17, 34, 26, 0.9) 100%)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(110, 191, 139, 0.4)',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Building2 className="w-4 h-4 text-emerald-300" />
+                <span>直接前往...</span>
+                <ChevronDown className="w-4 h-4 text-emerald-400 opacity-80" />
+              </button>
+
+              {/* Dropdown Menu Popup */}
+              {isDropdownOpen && (
+                <div
                   style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    minWidth: '240px',
+                    maxHeight: '360px',
+                    overflowY: 'auto',
+                    borderRadius: '16px',
+                    background: 'rgba(15, 25, 20, 0.95)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65)',
+                    padding: '8px',
+                    zIndex: 200,
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#e2e8f0',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    flexDirection: 'column',
+                    gap: '4px',
                   }}
-                  className="hover:bg-emerald-950/60 hover:text-emerald-300"
+                  className="custom-scrollbar"
                 >
-                  <Building className="w-4 h-4 text-emerald-400" />
-                  <span>{sub.description || sub.name}</span>
-                </button>
-              ))}
+                  {/* Group 1: 我的最愛 */}
+                  {hasFavorites && (
+                    <>
+                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>我的最愛</span>
+                      </div>
+                      {favorites.map((fav) => (
+                        <button
+                          key={fav.id}
+                          type="button"
+                          onClick={() => {
+                            setIsDropdownOpen(false)
+                            const targetPid = fav.p_id || fav.pId
+                            if (targetPid && targetPid !== homeFunction.id) {
+                              setFogState('closing')
+                              setTimeout(() => {
+                                setFogState('covered')
+                                onNavigate(`/${fav.name}`)
+                              }, 800)
+                            } else {
+                              onNavigate(`/${fav.name}`)
+                            }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#e2e8f0',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          className="hover:bg-amber-950/40 hover:text-amber-300"
+                        >
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400/40" />
+                          <span>{fav.description || fav.name}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
 
-              {permittedSubFunctions.length === 0 && (
-                <div style={{ padding: '4px 12px 6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
-                  尚無可用建築子功能
+                  {/* Group 2: 本地建築 */}
+                  {hasLocalBuildings && (
+                    <>
+                      {hasFavorites && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.15)', margin: '4px 0' }} />}
+                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Building className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>本地建築</span>
+                      </div>
+                      {localBuildings.map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => {
+                            setIsDropdownOpen(false)
+                            onNavigate(`/${sub.name}`)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#e2e8f0',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          className="hover:bg-emerald-950/60 hover:text-emerald-300"
+                        >
+                          <Building className="w-4 h-4 text-emerald-400" />
+                          <span>{sub.description || sub.name}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Group 3: 相鄰大地圖 */}
+                  {hasNeighborMaps && (
+                    <>
+                      {(hasFavorites || hasLocalBuildings) && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.15)', margin: '4px 0' }} />}
+                      <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>相鄰大地圖</span>
+                      </div>
+                      {neighborMaps.map((nm) => {
+                        const dirName =
+                          nm.direction === 'N'
+                            ? '北方'
+                            : nm.direction === 'E'
+                            ? '東方'
+                            : nm.direction === 'S'
+                            ? '南方'
+                            : nm.direction === 'W'
+                            ? '西方'
+                            : '相鄰區域'
+
+                        return (
+                          <button
+                            key={nm.id || nm.name}
+                            type="button"
+                            onClick={() => {
+                              setIsDropdownOpen(false)
+                              setFogState('closing')
+                              setTimeout(() => {
+                                setFogState('covered')
+                                onNavigate(`/${nm.name}`)
+                              }, 800)
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              background: 'transparent',
+                              color: '#e2e8f0',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                            className="hover:bg-emerald-950/60 hover:text-emerald-300"
+                          >
+                            <Compass className="w-4 h-4 text-emerald-400" />
+                            <span>
+                              前往{dirName}：{nm.title || nm.name}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </>
+                  )}
+
+                  {/* Group 4: 新增建築 */}
+                  {hasAdminOptions && (
+                    <>
+                      {(hasFavorites || hasLocalBuildings || hasNeighborMaps) && <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />}
+                      <div style={{ padding: '4px 0' }}>
+                        <button
+                          type="button"
+                          onClick={handleOpenPhase1}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            width: '100%',
+                            padding: '9px 12px',
+                            borderRadius: '10px',
+                            border: '1px dashed rgba(110, 191, 139, 0.5)',
+                            background: 'rgba(52, 120, 78, 0.25)',
+                            color: '#6ebf8b',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          className="hover:bg-emerald-900/40 hover:text-emerald-200"
+                        >
+                          <Plus className="w-4 h-4 text-emerald-400" />
+                          <span>新增建築</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
-
-              {/* Section B: Neighbor Maps */}
-              <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />
-              <div style={{ padding: '6px 12px 2px 12px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.5px' }}>
-                區塊 B：相鄰大地圖
-              </div>
-
-              {homeFunction.neighborMaps && homeFunction.neighborMaps.length > 0 ? (
-                homeFunction.neighborMaps.map((nm) => {
-                  const dirName =
-                    nm.direction === 'N'
-                      ? '北方'
-                      : nm.direction === 'E'
-                      ? '東方'
-                      : nm.direction === 'S'
-                      ? '南方'
-                      : nm.direction === 'W'
-                      ? '西方'
-                      : '相鄰區域'
-
-                  return (
-                    <button
-                      key={nm.id || nm.name}
-                      type="button"
-                      onClick={() => {
-                        setIsDropdownOpen(false)
-                        setFogState('closing')
-                        setTimeout(() => {
-                          setFogState('covered')
-                          onNavigate(`/${nm.name}`)
-                        }, 800)
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#e2e8f0',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      className="hover:bg-emerald-950/60 hover:text-emerald-300"
-                    >
-                      <Compass className="w-4 h-4 text-emerald-400" />
-                      <span>
-                        前往{dirName}：{nm.title || nm.name}
-                      </span>
-                    </button>
-                  )
-                })
-              ) : (
-                <div style={{ padding: '4px 12px 6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
-                  尚無連接相鄰區域
-                </div>
-              )}
-
-              {/* Admin / Manager Special Option */}
-              {canCreateBuilding && (
-                <>
-                  <div style={{ height: '1px', background: 'rgba(163, 198, 175, 0.2)', margin: '4px 0' }} />
-                  <button
-                    type="button"
-                    onClick={handleOpenPhase1}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '10px',
-                      border: '1px dashed rgba(110, 191, 139, 0.5)',
-                      background: 'rgba(52, 120, 78, 0.25)',
-                      color: '#6ebf8b',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                    className="hover:bg-emerald-800/40 hover:text-emerald-200"
-                  >
-                    <Plus className="w-4 h-4 text-emerald-400" />
-                    <span>+ 新增子功能（建造建築）</span>
-                  </button>
-                </>
               )}
             </div>
-          )}
-        </div>
+          )
+        })()}
       </div>
 
       {/* Phase 2 Placement Mode HUD Notification Banner */}

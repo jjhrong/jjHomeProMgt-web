@@ -6,7 +6,7 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
-import { Settings, LogOut, User, AlertTriangle } from 'lucide-react'
+import { Settings, LogOut, User, AlertTriangle, Star } from 'lucide-react'
 import { IsometricMap } from './components/IsometricMap'
 import { PostBoard } from './components/PostBoard'
 
@@ -1189,6 +1189,52 @@ function App() {
     }
   }, [token, user])
 
+  // Toggle favorite status for a function (Optimistic UI Update)
+  const handleToggleFavorite = async (funcId: string) => {
+    if (!token) return
+
+    setHomeFunction((prevHome: any) => {
+      if (!prevHome) return prevHome
+      const currentFavs: any[] = prevHome.favorites || []
+      const exists = currentFavs.some((f) => f.id === funcId)
+
+      let updatedFavs: any[]
+      if (exists) {
+        updatedFavs = currentFavs.filter((f) => f.id !== funcId)
+      } else {
+        const target = currentFunction || { id: funcId, name: funcId, description: funcId, type: 'PAGE' }
+        updatedFavs = [
+          ...currentFavs,
+          {
+            id: funcId,
+            name: target.name,
+            description: target.description,
+            type: target.type,
+            p_id: target.pId || target.p_id || prevHome.id,
+            hasPermission: true,
+          },
+        ]
+      }
+
+      return {
+        ...prevHome,
+        favorites: updatedFavs,
+      }
+    })
+
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/v1/functions/${funcId}/favorite`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      fetchHomeFunction(token)
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err)
+      fetchHomeFunction(token)
+    }
+  }
+
   // General layout function block renderer
   const renderFunctionBlocks = (func: any) => {
     if (!func) return null
@@ -1200,10 +1246,10 @@ function App() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* First Block: Function name and other details */}
+        {/* First Block: Function description and Favorite status component */}
         {showFirst && (
-          <div style={{ padding: '8px 0' }}>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '8px', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontSize: '1.4rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
@@ -1213,7 +1259,58 @@ function App() {
               </svg>
               {func.description}
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>功能名稱: {func.name} | 類型: {func.type}</p>
+
+            {/* Favorite Status Component */}
+            {(() => {
+              const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
+
+              if (isFav) {
+                return (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '5px 12px',
+                      borderRadius: '12px',
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      color: '#f59e0b',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span>最愛</span>
+                  </div>
+                )
+              }
+
+              return (
+                <button
+                  type="button"
+                  onClick={() => handleToggleFavorite(func.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 14px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    color: '#f59e0b',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  className="hover:bg-amber-950/40 hover:scale-105"
+                >
+                  <Star className="w-4 h-4 text-amber-400" />
+                  <span>最愛+</span>
+                </button>
+              )
+            })()}
           </div>
         )}
 
