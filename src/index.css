@@ -357,7 +357,7 @@ textarea.form-control {
 .dashboard-container {
   max-width: 1000px;
   width: 90%;
-  margin: 40px auto;
+  margin: auto;
   display: flex;
   flex-direction: column;
   gap: 32px;

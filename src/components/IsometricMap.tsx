@@ -341,8 +341,38 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     hasPermission: boolean
   }
 
-  const [adjacentMapInfos, setAdjacentMapInfos] = useState<AdjacentMapInfo[]>([])
-  const [buildingSpriteMap, setBuildingSpriteMap] = useState<Map<string, { sheet_id: string; spriteCol: number; spriteRow: number }>>(new Map())
+  // Adjacent maps state for Highway T-Bar Signposts (高速公路 T 霸提示招牌)
+  interface AdjacentMapInfo {
+    dir: 'N' | 'S' | 'E' | 'W'
+    name: string
+    title: string
+    hasPermission: boolean
+  }
+
+  // Derive adjacent map infos directly from homeFunction.neighborMaps returned by backend
+  const adjacentMapInfos: AdjacentMapInfo[] = useMemo(() => {
+    if (homeFunction.neighborMaps && homeFunction.neighborMaps.length > 0) {
+      return homeFunction.neighborMaps.map((nm) => {
+        const rawDir = (nm.direction || 'E').toUpperCase()
+        const dir = (['N', 'S', 'E', 'W'].includes(rawDir) ? rawDir : 'E') as 'N' | 'S' | 'E' | 'W'
+        return {
+          dir,
+          name: nm.name,
+          title: nm.title || nm.name,
+          hasPermission: true,
+        }
+      })
+    }
+    // Guaranteed fallback demo T-Bar signpost (東區生態公園) if no neighbor maps exist in DB
+    return [
+      {
+        dir: 'E',
+        name: 'Park',
+        title: '東區生態公園',
+        hasPermission: true,
+      },
+    ]
+  }, [homeFunction.neighborMaps])
 
   // Set default center only if mapKey is not yet cached
   useEffect(() => {
@@ -354,172 +384,19 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     }
   }, [mapKey, centerX, centerY])
 
-  // Fetch adjacent maps and permissions for T-Bar signposts
+  // Fog Overlay open effect when map is loaded
   useEffect(() => {
-    let isMounted = true
-    const fetchAdjacentMaps = async () => {
-      // Keep fog covered while homeFunction subFunctions/ID are still loading from backend
-      if (!homeFunction || (!homeFunction.id && (!homeFunction.subFunctions || homeFunction.subFunctions.length === 0))) {
-        setFogState('covered')
-        return
-      }
-
-      try {
-        let response = await axios.get(
-          `${apiBaseUrl}/api/v1/maps?kind=AREA_TRANSITION&map_a_id=${homeFunction.id || ''}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        let transitions = response.data || []
-
-        if ((!transitions || transitions.length === 0) && homeFunction.name) {
-          try {
-            const respName = await axios.get(
-              `${apiBaseUrl}/api/v1/maps?kind=AREA_TRANSITION&map_a_id=${homeFunction.name}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            )
-            if (respName.data && respName.data.length > 0) {
-              transitions = respName.data
-            }
-          } catch (err) {
-            // Ignore
-          }
-        }
-
-        const activeTransitions = transitions.filter((m: any) => {
-          const statusVal = typeof m.status === 'number' ? m.status : 2
-          return (statusVal & 2) === 2
-        })
-
-        // Build sprite configuration map for all AREA_TRANSITION entries
-        const spriteMap = new Map<string, { sheet_id: string; spriteCol: number; spriteRow: number }>()
-
-        const registerSpriteConfig = (key: string, cfg: { sheet_id: string; spriteCol: number; spriteRow: number }) => {
-          if (!key) return
-          spriteMap.set(key, cfg)
-          spriteMap.set(key.toLowerCase(), cfg)
-        }
-
-        for (const trans of activeTransitions) {
-          const mapBID = trans.map_b_id || trans.mapBID || trans.MapBID
-          const remarkRaw = trans.remark || trans.Remark
-          if (mapBID && remarkRaw) {
-            try {
-              const parsed = typeof remarkRaw === 'string' ? JSON.parse(remarkRaw) : remarkRaw
-              if (parsed && typeof parsed.spriteCol === 'number') {
-                const config = {
-                  sheet_id: String(parsed.sheet_id || '1'),
-                  spriteCol: parsed.spriteCol,
-                  spriteRow: parsed.spriteRow || 0,
-                }
-                registerSpriteConfig(String(mapBID), config)
-              }
-            } catch (err) {
-              // Ignore non-JSON remark strings
-            }
-          }
-        }
-
-        const defaultDirs: ('N' | 'E' | 'S' | 'W')[] = ['N', 'E', 'S', 'W']
-        const list: AdjacentMapInfo[] = []
-
-        for (let i = 0; i < activeTransitions.length; i++) {
-          const trans = activeTransitions[i]
-          const targetFuncID = trans.map_b_id || trans.mapBID || trans.MapBID
-          const remarkRaw = trans.remark || trans.Remark
-          const rawDir = remarkRaw || trans.description || defaultDirs[i % 4]
-          const dir = typeof rawDir === 'string' && ['N', 'S', 'E', 'W'].includes(rawDir.trim().toUpperCase())
-            ? (rawDir.trim().toUpperCase() as 'N' | 'S' | 'E' | 'W')
-            : defaultDirs[i % 4]
-          try {
-            let funcData: any = null
-            try {
-              const funcRes = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${targetFuncID}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              funcData = funcRes.data
-            } catch (err) {
-              // Fallback: query all_functions if targetFuncID is UUID and backend endpoint didn't match
-              const allRes = await axios.get(`${apiBaseUrl}/api/v1/all_functions`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              const allList = allRes.data || []
-              funcData = allList.find((f: any) => f.id === targetFuncID || f.name === targetFuncID)
-            }
-
-            if (funcData && funcData.name) {
-              list.push({
-                dir,
-                name: funcData.name,
-                title: funcData.description || funcData.name,
-                hasPermission: true,
-              })
-
-              if (remarkRaw) {
-                try {
-                  const parsed = typeof remarkRaw === 'string' ? JSON.parse(remarkRaw) : remarkRaw
-                  if (parsed && typeof parsed.spriteCol === 'number') {
-                    const config = {
-                      sheet_id: String(parsed.sheet_id || '1'),
-                      spriteCol: parsed.spriteCol,
-                      spriteRow: parsed.spriteRow || 0,
-                    }
-                    registerSpriteConfig(String(funcData.id), config)
-                    registerSpriteConfig(String(funcData.name), config)
-                  }
-                } catch (e) {
-                  // Ignore
-                }
-              }
-            }
-          } catch (err) {
-            // Permission failed or function inactive
-          }
-        }
-
-        // Guaranteed fallback demo T-Bar signposts (東區生態公園) if no AREA_TRANSITION maps exist in DB
-        if (list.length === 0) {
-          list.push({
-            dir: 'E',
-            name: 'Park',
-            title: '東區生態公園',
-            hasPermission: true,
-          })
-        }
-
-        console.log('[T-Bar Debug] Fetched T-Bar adjacentMapInfos:', list)
-
-        if (isMounted) {
-          setAdjacentMapInfos(list)
-          setBuildingSpriteMap(spriteMap)
-        }
-      } catch (err) {
-        console.error('Failed to fetch adjacent maps for T-Bar signposts:', err)
-      } finally {
-        if (isMounted) {
-          // Double rAF + 180ms delay ensures React paints all building sprite buttons and T-Bars into the DOM under fog cover before opening
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (isMounted) {
-                setTimeout(() => {
-                  if (isMounted) {
-                    setFogState('opening')
-                    setTimeout(() => {
-                      if (isMounted) setFogState('hidden')
-                    }, 800)
-                  }
-                }, 180)
-              }
-            })
-          })
-        }
-      }
+    if (!homeFunction || (!homeFunction.id && (!homeFunction.subFunctions || homeFunction.subFunctions.length === 0))) {
+      setFogState('covered')
+      return
     }
 
-    fetchAdjacentMaps()
-    return () => {
-      isMounted = false
-    }
-  }, [homeFunction.id, homeFunction.name, homeFunction.subFunctions?.length, token, apiBaseUrl])
+    setFogState('opening')
+    const timer = setTimeout(() => {
+      setFogState('hidden')
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [homeFunction.id, homeFunction.name, homeFunction.subFunctions?.length])
 
   // Dragging state for mouse/touch panning
   const [isDragging, setIsDragging] = useState(false)
@@ -1246,28 +1123,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 )}
               </svg>
 
-              {/* Building Texture / Sprite Button (若串不出maps裡的AREA_TRANSITION就用第8張貼圖; 串得出來就用remark裡的sheet_id/spriteCol/spriteRow) */}
+              {/* Building Texture / Sprite Button (預設為第 7 個貼圖: 矮房, spriteCol = 6) */}
               {tile.building && (() => {
-                const bId = String(tile.building.id || '')
-                const bName = String(tile.building.name || '')
-                const spriteConfig =
-                  buildingSpriteMap.get(bId) ||
-                  buildingSpriteMap.get(bId.toLowerCase()) ||
-                  buildingSpriteMap.get(bName) ||
-                  buildingSpriteMap.get(bName.toLowerCase()) ||
-                  (typeof (tile.building as any).spriteCol === 'number'
-                    ? {
-                      sheet_id: String((tile.building as any).sheet_id || '1'),
-                      spriteCol: Number((tile.building as any).spriteCol),
-                      spriteRow: Number((tile.building as any).spriteRow || 0),
-                    }
-                    : undefined)
-
-                // 串得出 spriteCol 及 spriteRow 姿態就依照對應貼圖 (sheet_id / spriteCol / spriteRow)
-                // 若串不出 maps 裡的 AREA_TRANSITION 則備援第 8 張貼圖 (spriteCol = 7)
-                const sheetId = spriteConfig ? spriteConfig.sheet_id : '1'
-                const spriteCol = spriteConfig ? spriteConfig.spriteCol : 7
-                const spriteRow = spriteConfig ? spriteConfig.spriteRow : 0
+                const b = tile.building as any
+                const sheetId = String(b.sheet_id || '1')
+                const spriteCol = typeof b.spriteCol === 'number' ? Number(b.spriteCol) : 6
+                const spriteRow = typeof b.spriteRow === 'number' ? Number(b.spriteRow) : 0
 
                 return (
                   <BuildingSpriteButton
@@ -1290,107 +1151,129 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           )
         })}
 
-        {/* Highway T-Bar Signposts (四個邊中點往外延伸 - 高速公路 T 霸提示招牌) */}
-        {adjacentMapInfos.map((adj) => {
-          let tbarIsoX = 0
-          let tbarIsoY = 0
+        {/* Highway T-Bar Signposts (四個邊中點緊貼 - 高速公路 T 霸提示招牌) */}
+        {(() => {
+          const dirCounts: Record<string, number> = {}
+          const dirIndices: Record<string, number> = {}
+          adjacentMapInfos.forEach((a) => {
+            dirCounts[a.dir] = (dirCounts[a.dir] || 0) + 1
+          })
 
-          if (adj.dir === 'N') {
-            // Screen North (Top vertex of isometric map)
-            tbarIsoX = 0
-            tbarIsoY = 20
-          } else if (adj.dir === 'S') {
-            // Screen South (Bottom vertex of isometric map)
-            tbarIsoX = 0
-            tbarIsoY = (width - 1 + height - 1) * (TILE_HEIGHT / 2) - 20
-          } else if (adj.dir === 'W') {
-            // Screen West (Left vertex of isometric map)
-            tbarIsoX = -(height - 1) * (TILE_WIDTH / 2) + 40
-            tbarIsoY = (height - 1) * (TILE_HEIGHT / 2)
-          } else if (adj.dir === 'E') {
-            // Screen East (Right vertex of isometric map)
-            tbarIsoX = (width - 1) * (TILE_WIDTH / 2) - 40
-            tbarIsoY = (width - 1) * (TILE_HEIGHT / 2)
-          }
+          const midX = Math.floor((width - 1) / 2)
+          const midY = Math.floor((height - 1) / 2)
 
-          return (
-            <div
-              key={adj.dir}
-              onClick={(e) => handleBoundaryClick(e, adj.dir, adj.name)}
-              style={{
-                position: 'absolute',
-                left: `${tbarIsoX}px`,
-                top: `${tbarIsoY}px`,
-                transform: 'translate(-50%, -100%)',
-                zIndex: 999,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                pointerEvents: 'auto',
-              }}
-            >
-              {/* Highway Signboard Box */}
+          return adjacentMapInfos.map((adj, index) => {
+            const count = dirCounts[adj.dir] || 1
+            const idx = dirIndices[adj.dir] || 0
+            dirIndices[adj.dir] = idx + 1
+
+            // Offset factor for multiple signs along the same border edge
+            const offset = (idx - (count - 1) / 2) * 1.2
+
+            let tbarIsoX = 0
+            let tbarIsoY = 0
+
+            if (adj.dir === 'N') {
+              // North border (Top-left edge)
+              const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
+              tbarIsoX = (gx) * (TILE_WIDTH / 2)
+              tbarIsoY = (gx) * (TILE_HEIGHT / 2) - 10
+            } else if (adj.dir === 'S') {
+              // South border (Bottom-right edge)
+              const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
+              tbarIsoX = (gx - (height - 1)) * (TILE_WIDTH / 2)
+              tbarIsoY = (gx + (height - 1)) * (TILE_HEIGHT / 2) + 30
+            } else if (adj.dir === 'E') {
+              // East border (Top-right edge)
+              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + offset)))
+              tbarIsoX = (width - 1 - gy) * (TILE_WIDTH / 2) + 45
+              tbarIsoY = (width - 1 + gy) * (TILE_HEIGHT / 2)
+            } else if (adj.dir === 'W') {
+              // West border (Bottom-left edge)
+              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + offset)))
+              tbarIsoX = (-gy) * (TILE_WIDTH / 2) - 45
+              tbarIsoY = (gy) * (TILE_HEIGHT / 2)
+            }
+
+            return (
               <div
-                className="hover:scale-105 transition-all duration-300 group"
+                key={`${adj.dir}-${adj.name}-${index}`}
+                onClick={(e) => handleBoundaryClick(e, adj.dir, adj.name)}
                 style={{
-                  background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
-                  border: '2px solid #34d399',
-                  boxShadow: '0 12px 30px rgba(4, 120, 87, 0.6), 0 0 15px rgba(52, 211, 153, 0.4)',
-                  borderRadius: '14px',
-                  padding: '10px 18px',
+                  position: 'absolute',
+                  left: `${tbarIsoX}px`,
+                  top: `${tbarIsoY}px`,
+                  transform: 'translate(-50%, -100%)',
+                  zIndex: 9999,
+                  cursor: 'pointer',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '10px',
-                  color: '#ffffff',
-                  whiteSpace: 'nowrap',
+                  pointerEvents: 'auto',
                 }}
               >
+                {/* Highway Signboard Box */}
                 <div
+                  className="hover:scale-105 transition-all duration-300 group"
                   style={{
+                    background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
+                    border: '2px solid #34d399',
+                    boxShadow: '0 12px 30px rgba(4, 120, 87, 0.6), 0 0 15px rgba(52, 211, 153, 0.4)',
+                    borderRadius: '14px',
+                    padding: '10px 18px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '26px',
-                    height: '26px',
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    border: '1px solid rgba(255, 255, 255, 0.4)',
+                    gap: '10px',
+                    color: '#ffffff',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {adj.dir === 'N' && <ArrowUp className="w-4 h-4 text-emerald-200" />}
-                  {adj.dir === 'S' && <ArrowDown className="w-4 h-4 text-emerald-200" />}
-                  {adj.dir === 'W' && <ArrowLeft className="w-4 h-4 text-emerald-200" />}
-                  {adj.dir === 'E' && <ArrowRight className="w-4 h-4 text-emerald-200" />}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                    }}
+                  >
+                    {adj.dir === 'N' && <ArrowUp className="w-4 h-4 text-emerald-200" />}
+                    {adj.dir === 'S' && <ArrowDown className="w-4 h-4 text-emerald-200" />}
+                    {adj.dir === 'W' && <ArrowLeft className="w-4 h-4 text-emerald-200" />}
+                    {adj.dir === 'E' && <ArrowRight className="w-4 h-4 text-emerald-200" />}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    {adj.title}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.04em' }}>
-                  {adj.title}
-                </div>
-              </div>
 
-              {/* T-Bar High-rise Metallic Support Pole */}
-              <div
-                style={{
-                  width: '10px',
-                  height: '75px',
-                  background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
-                  boxShadow: '2px 0 8px rgba(0,0,0,0.6)',
-                }}
-              />
-              {/* T-Bar Concrete Base Anchor */}
-              <div
-                style={{
-                  width: '24px',
-                  height: '8px',
-                  background: '#334155',
-                  borderRadius: '3px',
-                  border: '1px solid #64748b',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.7)',
-                }}
-              />
-            </div>
-          )
-        })}
+                {/* T-Bar High-rise Metallic Support Pole */}
+                <div
+                  style={{
+                    width: '10px',
+                    height: '60px',
+                    background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
+                    boxShadow: '2px 0 8px rgba(0,0,0,0.6)',
+                  }}
+                />
+                {/* T-Bar Concrete Base Anchor */}
+                <div
+                  style={{
+                    width: '24px',
+                    height: '8px',
+                    background: '#334155',
+                    borderRadius: '3px',
+                    border: '1px solid #64748b',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.7)',
+                  }}
+                />
+              </div>
+            )
+          })
+        })()}
       </div>
 
       {/* Floating Bottom-Right Zoom Controller (滾輪 / 拉條縮放控制器 50% ~ 200%) */}
