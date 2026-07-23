@@ -1294,6 +1294,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               <div
                 key={`${adj.dir}-${adj.name}-${index}`}
                 onClick={(e) => handleBoundaryClick(e, adj.dir, adj.name)}
+                className="opacity-50 hover:opacity-100 transition-opacity duration-300 group"
                 style={{
                   position: 'absolute',
                   left: `${tbarIsoX}px`,
@@ -1307,9 +1308,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Highway Signboard Box */}
+                {/* Notice Board Signboard Box */}
                 <div
-                  className="hover:scale-105 transition-all duration-300 group"
                   style={{
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
                     border: '2.5px solid #34d399',
@@ -1345,26 +1345,60 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   </div>
                 </div>
 
-                {/* T-Bar High-rise Metallic Support Pole */}
+                {/* Dual Pillar Legs (告示牌 左右雙腳架與雙基座) */}
                 <div
                   style={{
-                    width: '12px',
-                    height: '80px',
-                    background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
-                    boxShadow: '2px 0 8px rgba(0,0,0,0.6)',
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '0 20px',
+                    marginTop: '-2px',
                   }}
-                />
-                {/* T-Bar Concrete Base Anchor */}
-                <div
-                  style={{
-                    width: '30px',
-                    height: '10px',
-                    background: '#334155',
-                    borderRadius: '3px',
-                    border: '1px solid #64748b',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.7)',
-                  }}
-                />
+                >
+                  {/* Left Support Leg */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '65px',
+                        background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
+                        boxShadow: '2px 0 6px rgba(0,0,0,0.5)',
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '8px',
+                        background: '#334155',
+                        borderRadius: '3px',
+                        border: '1px solid #64748b',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.6)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Right Support Leg */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '65px',
+                        background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
+                        boxShadow: '2px 0 6px rgba(0,0,0,0.5)',
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '8px',
+                        background: '#334155',
+                        borderRadius: '3px',
+                        border: '1px solid #64748b',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.6)',
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             )
           })
