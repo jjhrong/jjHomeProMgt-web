@@ -1290,6 +1290,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               tbarIsoY = (gy - dist) * (TILE_HEIGHT / 2)
             }
 
+            const isEastOrSouth = adj.dir === 'E' || adj.dir === 'S'
+            const skewAngle = isEastOrSouth ? '-30deg' : '30deg'
+
             return (
               <div
                 key={`${adj.dir}-${adj.name}-${index}`}
@@ -1299,7 +1302,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   position: 'absolute',
                   left: `${tbarIsoX}px`,
                   top: `${tbarIsoY}px`,
-                  transform: adj.dir === 'E' ? 'translate(-50%, -100%) rotate(30deg)' : 'translate(-50%, -100%)',
+                  transform: `translate(-50%, -100%) skewY(${skewAngle})`,
                   transformOrigin: 'bottom center',
                   zIndex: 9999,
                   cursor: 'pointer',
@@ -1309,12 +1312,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Notice Board Signboard Box */}
+                {/* Notice Board Signboard Box (無光影純色幾何立體厚度) */}
                 <div
                   style={{
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
-                    border: '2.5px solid #34d399',
-                    boxShadow: '0 14px 35px rgba(4, 120, 87, 0.65), 0 0 20px rgba(52, 211, 153, 0.5)',
+                    border: '2px solid #34d399',
+                    filter:
+                      'drop-shadow(1px 1px 0px #0e382b) drop-shadow(2px 2px 0px #0e382b) drop-shadow(3px 3px 0px #0e382b) drop-shadow(4px 4px 0px #0e382b)',
                     borderRadius: '16px',
                     padding: '14px 24px',
                     display: 'flex',
@@ -1346,7 +1350,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   </div>
                 </div>
 
-                {/* Dual Pillar Legs (告示牌 左右雙腳架與雙基座) */}
+                {/* Dual Pillar Legs (告示牌 左右雙腳架與深灰色幾何厚度) */}
                 <div
                   style={{
                     width: '100%',
@@ -1357,13 +1361,20 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   }}
                 >
                   {/* Left Support Leg */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      filter:
+                        'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+                    }}
+                  >
                     <div
                       style={{
                         width: '8px',
                         height: '65px',
-                        background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
-                        boxShadow: '2px 0 6px rgba(0,0,0,0.5)',
+                        background: '#475569',
                       }}
                     />
                     <div
@@ -1373,19 +1384,25 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                         background: '#334155',
                         borderRadius: '3px',
                         border: '1px solid #64748b',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.6)',
                       }}
                     />
                   </div>
 
                   {/* Right Support Leg */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      filter:
+                        'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+                    }}
+                  >
                     <div
                       style={{
                         width: '8px',
                         height: '65px',
-                        background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
-                        boxShadow: '2px 0 6px rgba(0,0,0,0.5)',
+                        background: '#475569',
                       }}
                     />
                     <div
@@ -1395,7 +1412,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                         background: '#334155',
                         borderRadius: '3px',
                         border: '1px solid #64748b',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.6)',
                       }}
                     />
                   </div>
