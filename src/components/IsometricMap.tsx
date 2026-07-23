@@ -1170,27 +1170,30 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             // Offset factor for multiple signs along the same border edge
             const offset = (idx - (count - 1) / 2) * 1.2
 
-            const dist = 8 // Shift T-Bar outwards by 8 grid tiles distance
             let tbarIsoX = 0
             let tbarIsoY = 0
 
             if (adj.dir === 'N') {
-              // North border (Top-left edge) - shift outwards by 8 tiles
+              // North border (Top-left edge) - shift outwards by 2 tiles
+              const dist = 2
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
               tbarIsoX = (gx + dist) * (TILE_WIDTH / 2)
               tbarIsoY = (gx - dist) * (TILE_HEIGHT / 2) - 10
             } else if (adj.dir === 'S') {
-              // South border (Bottom-right edge) - shift outwards by 8 tiles
+              // South border (Bottom-right edge) - shift outwards by 6 tiles
+              const dist = 6
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
               tbarIsoX = (gx - (height - 1) - dist) * (TILE_WIDTH / 2)
               tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30
             } else if (adj.dir === 'E') {
-              // East border (Top-right edge) - shift outwards by 8 tiles and down along edge by 3 tiles
+              // East border (Top-right edge) - shift outwards by 6 tiles and down along edge by 3 tiles
+              const dist = 6
               const gy = Math.min(height - 1, Math.max(0, Math.round(midY + 3 + offset)))
               tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
               tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2)
             } else if (adj.dir === 'W') {
-              // West border (Bottom-left edge) - shift outwards by 8 tiles
+              // West border (Bottom-left edge) - shift outwards by 2 tiles
+              const dist = 2
               const gy = Math.min(height - 1, Math.max(0, Math.round(midY + offset)))
               tbarIsoX = (-gy - dist) * (TILE_WIDTH / 2) - 45
               tbarIsoY = (gy - dist) * (TILE_HEIGHT / 2)
