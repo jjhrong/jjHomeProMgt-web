@@ -53,6 +53,7 @@ interface NeighborMap {
   name: string
   title?: string
   direction: string
+  hasPermission?: boolean
 }
 
 interface HomeFunction {
@@ -188,17 +189,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   const [lockedGrid, setLockedGrid] = useState<{ gridX: number; gridY: number } | null>(null)
   const [isBuildingSubmitting, setIsBuildingSubmitting] = useState(false)
 
-  // User privileges for creating buildings
-  const canCreateBuilding =
-    userRole === 'SYS_Admin' ||
-    (homeFunction.subFunctions &&
-      homeFunction.subFunctions.some((sub) => (sub as any).hasPermission !== false))
-
-  // Sub-functions that the user has permission for (for quick navigation dropdown)
-  const permittedSubFunctions = useMemo(() => {
-    if (!homeFunction.subFunctions) return []
-    return homeFunction.subFunctions.filter((sub) => (sub as any).hasPermission !== false)
-  }, [homeFunction.subFunctions])
 
   // Dynamic Map Dimensions (clamped 10~30)
   const width = Math.min(Math.max(homeFunction.width || 10, 10), 30)
@@ -739,14 +729,31 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
         {/* Quick Navigation Dropdown (DirectGoMenu) */}
         {(() => {
-          const favorites = homeFunction.favorites || []
-          const localBuildings =
+          // 1. Favorites: filter items where hasPermission !== false
+          const favorites = (homeFunction.favorites || []).filter(
+            (fav) => fav.hasPermission !== false
+          )
+
+          // 2. Local Buildings: filter sub-functions where hasPermission !== false
+          const rawLocalBuildings =
             homeFunction.localBuildings && homeFunction.localBuildings.length > 0
               ? homeFunction.localBuildings
-              : permittedSubFunctions
-          const neighborMaps = homeFunction.neighborMaps || []
-          const adminOpts = homeFunction.adminOptions || []
-          const hasAdminOptions = canCreateBuilding || (adminOpts && adminOpts.some((a) => a.allowed))
+              : homeFunction.subFunctions || []
+          const localBuildings = rawLocalBuildings.filter(
+            (sub) => sub.hasPermission !== false
+          )
+
+          // 3. Neighbor Maps: filter neighbor maps where hasPermission !== false
+          const neighborMaps = (homeFunction.neighborMaps || []).filter(
+            (nm) => nm.hasPermission !== false
+          )
+
+          // 4. Add Building Option: check admin role or CREATE_BUILDING option permission
+          const isSystemAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER'
+          const hasCreateOption = (homeFunction.adminOptions || []).some(
+            (a) => a.key === 'CREATE_BUILDING' && a.allowed !== false
+          )
+          const hasAdminOptions = isSystemAdminOrManager || hasCreateOption
 
           const hasFavorites = favorites.length > 0
           const hasLocalBuildings = localBuildings.length > 0
