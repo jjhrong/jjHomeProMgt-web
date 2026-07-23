@@ -13,6 +13,7 @@ import {
   X,
   Sparkles,
   AlertCircle,
+  User,
 } from 'lucide-react'
 
 interface PostBoardProps {
@@ -41,6 +42,9 @@ interface PostItem {
   isLiked: boolean
   commentsCount?: number
   commentCount?: number
+  nickname?: string
+  avatarUrl?: string
+  avatar_url?: string
 }
 
 interface CommentItem {
@@ -462,32 +466,54 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                 )}
 
                 {/* Author Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: '#3a664b',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                    }}
-                  >
-                    {post.lmUser ? post.lmUser.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}>
-                      {post.lmUser || '匿名使用者'}
+                {(() => {
+                  const authorName = post.nickname || post.lmUser || '未知使用者'
+                  const authorAvatar = post.avatarUrl || post.avatar_url
+
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                      {authorAvatar ? (
+                        <img
+                          src={authorAvatar}
+                          alt={authorName}
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '1px solid rgba(163, 198, 175, 0.3)',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #2d543e 0%, #1c3829 100%)',
+                            border: '1px solid rgba(163, 198, 175, 0.3)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                          }}
+                        >
+                          <User className="w-5 h-5 text-emerald-300" />
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}>
+                          {authorName}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#7a9485' }}>
+                          {formatDate(post.lmDate)}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#7a9485' }}>
-                      {formatDate(post.lmDate)}
-                    </div>
-                  </div>
-                </div>
+                  )
+                })()}
 
                 {/* Post Title & Content */}
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px', lineHeight: '1.4' }}>
