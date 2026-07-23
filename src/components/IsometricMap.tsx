@@ -156,7 +156,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     if (!homeFunction.subFunctions) return []
     return homeFunction.subFunctions.filter((sub) => (sub as any).hasPermission !== false)
   }, [homeFunction.subFunctions])
-  
+
   // Dynamic Map Dimensions (clamped 10~30)
   const width = Math.min(Math.max(homeFunction.width || 10, 10), 30)
   const height = Math.min(Math.max(homeFunction.height || 10, 10), 30)
@@ -207,7 +207,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       container.removeEventListener('wheel', onWheel)
     }
   }, [])
-  
+
   // Transition / Authorization modal state
   const [transitionModal, setTransitionModal] = useState<{
     open: boolean
@@ -1081,13 +1081,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 style={{
                   position: 'absolute',
                   left: '50%',
-                  bottom: '-24px',
-                  transform: 'translate(-50%, 0)',
+                  bottom: '-30px',
+                  transform: 'translate(-50%, 0) scaleY(0.9)',
                   width: `${TILE_WIDTH + 14}px`,
                   height: '115px',
                   backgroundImage: 'url(/buildings_1.webp)',
                   backgroundSize: '1000% auto',
-                  backgroundPosition: `${(groundSpriteCol / 9) * 100}% 100%`,
+                  backgroundPosition: `${3 + (groundSpriteCol / 10) * 100}% 100%`,
                   backgroundRepeat: 'no-repeat',
                   pointerEvents: 'none',
                   opacity: isSelected ? 0.75 : 1.0,
@@ -1109,7 +1109,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       backgroundColor: 'transparent',
                       backgroundImage: 'url(/buildings_1.webp)',
                       backgroundSize: '1000% auto',
-                      backgroundPosition: `${(6 / 9) * 100}% 0%`,
+                      backgroundPosition: `${(6 / 10) * 100}% 100%`,
                       backgroundRepeat: 'no-repeat',
                       pointerEvents: 'none',
                       zIndex: depthIndex + 20,
@@ -1168,10 +1168,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   buildingSpriteMap.get(bName.toLowerCase()) ||
                   (typeof (tile.building as any).spriteCol === 'number'
                     ? {
-                        sheet_id: String((tile.building as any).sheet_id || '1'),
-                        spriteCol: Number((tile.building as any).spriteCol),
-                        spriteRow: Number((tile.building as any).spriteRow || 0),
-                      }
+                      sheet_id: String((tile.building as any).sheet_id || '1'),
+                      spriteCol: Number((tile.building as any).spriteCol),
+                      spriteRow: Number((tile.building as any).spriteRow || 0),
+                    }
                     : undefined)
 
                 // 串得出 spriteCol 及 spriteRow 姿態就依照對應貼圖 (sheet_id / spriteCol / spriteRow)

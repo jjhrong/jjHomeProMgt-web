@@ -40,6 +40,7 @@ interface PostItem {
   likesCount: number
   isLiked: boolean
   commentsCount?: number
+  commentCount?: number
 }
 
 interface CommentItem {
@@ -202,7 +203,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
     }
   }
 
-  // Handle Add Comment
+  // Handle Add Comment (Optimistic UI Update)
   const handleAddComment = async (postId: string) => {
     const text = commentInputs[postId]?.trim()
     if (!text || !token) return
@@ -220,13 +221,56 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
         [postId]: [...(prev[postId] || []), newComment],
       }))
       setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p))
+        prev.map((p) => {
+          if (p.id === postId) {
+            const currentCount = p.commentCount ?? p.commentsCount ?? 0
+            const nextCount = currentCount + 1
+            return {
+              ...p,
+              commentsCount: nextCount,
+              commentCount: nextCount,
+            }
+          }
+          return p
+        })
       )
       setCommentInputs((prev) => ({ ...prev, [postId]: '' }))
     } catch (err) {
       console.error('Failed to add comment:', err)
     } finally {
       setSubmittingComment((prev) => ({ ...prev, [postId]: false }))
+    }
+  }
+
+  // Handle Delete Comment (Optimistic UI Update)
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!token || !window.confirm('確定要刪除這則回應嗎？')) return
+
+    setCommentsMap((prev) => ({
+      ...prev,
+      [postId]: (prev[postId] || []).filter((c) => c.id !== commentId),
+    }))
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          const currentCount = p.commentCount ?? p.commentsCount ?? 0
+          const nextCount = Math.max(0, currentCount - 1)
+          return {
+            ...p,
+            commentsCount: nextCount,
+            commentCount: nextCount,
+          }
+        }
+        return p
+      })
+    )
+
+    try {
+      await axios.delete(`${apiBaseUrl}/api/v1/posts/${postId}/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch (err: any) {
+      console.error('Failed to delete comment:', err)
     }
   }
 
@@ -510,7 +554,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                     >
                       <MessageSquare className="w-4 h-4" />
                       <span>
-                        回覆 ({commentsMap[post.id] ? commentsMap[post.id].length : (post.commentsCount || 0)})
+                        回覆 ({(post.commentCount ?? post.commentsCount ?? 0)})
                       </span>
                     </button>
                   </div>
@@ -559,9 +603,18 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e0eae4' }}>
                                 {cmt.nickname || cmt.userId}
                               </span>
-                              <span style={{ fontSize: '0.7rem', color: '#688273' }}>
-                                {formatDate(cmt.lmDate)}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.7rem', color: '#688273' }}>
+                                  {formatDate(cmt.lmDate)}
+                                </span>
+                                <button
+                                  onClick={() => handleDeleteComment(post.id, cmt.id)}
+                                  title="刪除回應"
+                                  className="text-slate-500 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                             <p style={{ fontSize: '0.875rem', color: '#b2c7bc', margin: 0, lineHeight: '1.5' }}>
                               {cmt.content}

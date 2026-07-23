@@ -27,8 +27,8 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   hasPermission = true,
   tileWidth: _tileWidth = 96,
   tileHeight: _tileHeight = 48,
-  spriteWidth = 110,
-  spriteHeight = 140,
+  spriteWidth: _spriteWidth = 110,
+  spriteHeight: _spriteHeight = 200,
   onClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false)
@@ -48,9 +48,21 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
   // Col 7 (第 8 張): 別墅 (Villa)
   // Col 8 (第 9 張): 大樓 (Office Building)
   // Col 9 (第 10 張): 摩天大樓 (Skyscraper)
-  const bgPositionPercentX = (spriteCol / 9) * 100
-  const bgPositionPercentY = (spriteRow / 13) * 100
 
+  // 假設單格寬度設定為 100px ( backgroundSize: '1000px auto' )
+  // 針對每一列 (Row) 設定 Y 軸往上推的 px 值 (負數) *0.825
+  const ROW_Y_OFFSETS: Record<number, number> = {
+    9: 0,       // 第 0 列 (自由女神等)
+    8: -128,    // 第 1 列 (巴黎聖母院等) 128
+    7: -257,    // 第 2 列 129
+    6: -380,    // 第 3 列 (藍色高樓) 123
+    5: -508,    // 第 4 列 128
+    4: -637,    // 第 5 列 129
+    3: -797,    // 第 6 列 (杜拜塔、上海明珠塔等超高建築) 160
+    2: -940,    // 第 7 列 (台北 101 等) 123
+    1: -1068,   // 第 8 列 (巨蛋、工廠) 128
+    0: -1224,   // 第 9 列 (矮房 AAA、測試啦啦、樹木) -> 可微調此數字對齊草地 
+  };
   // Dynamic sprite image path reading sheet_id from remark (e.g. /buildings_1.webp or /sprites/buildings_1.webp)
   const cleanSheetId = String(sheet_id || '1').replace(/^0+/, '') || '1'
   const spriteImageUrl = `/buildings_${cleanSheetId}.webp`
@@ -120,17 +132,27 @@ export const BuildingSpriteButton: React.FC<BuildingSpriteButtonProps> = ({
       {/* Building CSS Sprite Crop Container (Fixed Width, Bottom Aligned Base) */}
       <div
         style={{
-          width: `${spriteWidth}px`,
-          height: `${spriteHeight}px`,
+          width: '100px',      // 1. 強制鎖定單格寬度 (對應 1000px 的 1/10)
+          height: `${(ROW_Y_OFFSETS[spriteRow + 1] - ROW_Y_OFFSETS[spriteRow])}px`,
           backgroundColor: 'transparent',
+
+          bottom: '20px',
+          transform: 'scaleY(0.9)',
+          transformOrigin: 'bottom center', // 🔥 絕對不能漏掉這行！
+
           backgroundImage: imageError ? 'none' : `url(${spriteImageUrl})`,
-          backgroundSize: '1000% auto',
-          backgroundPosition: `${bgPositionPercentX}% ${bgPositionPercentY}%`,
+          // 4. 強制給定整張雪碧圖的尺寸 (維持 10 欄寬)
+          backgroundSize: '1000px auto',
+
+          // 5. 放棄 bgPositionPercent，直接使用查表字典的絕對像素 px 定位
+          backgroundPosition: `-${spriteCol * 100}px ${(ROW_Y_OFFSETS[spriteRow]) || 0}px`,
+
           backgroundRepeat: 'no-repeat',
           position: 'relative',
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
+          // 移除原本造成錯位的 bottom: '-10px'
         }}
       >
         {/* Fallback procedural 3D building vector graphic if PNG sprite image is not yet loaded */}
