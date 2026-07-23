@@ -1290,9 +1290,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               tbarIsoY = (gy - dist) * (TILE_HEIGHT / 2)
             }
 
-            const isEastOrSouth = adj.dir === 'E' || adj.dir === 'S'
-            const skewAngle = isEastOrSouth ? '-30deg' : '30deg'
-
             return (
               <div
                 key={`${adj.dir}-${adj.name}-${index}`}
@@ -1302,8 +1299,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   position: 'absolute',
                   left: `${tbarIsoX}px`,
                   top: `${tbarIsoY}px`,
-                  transform: `translate(-50%, -100%) skewY(${skewAngle})`,
-                  transformOrigin: 'bottom center',
+                  transform: 'translate(-50%, -100%)',
                   zIndex: 9999,
                   cursor: 'pointer',
                   display: 'flex',
@@ -1312,7 +1308,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Notice Board Signboard Box (無光影純色幾何立體厚度) */}
+                {/* Notice Board Signboard Box (只扭曲面板版面，向左下對齊) */}
                 <div
                   style={{
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
@@ -1326,6 +1322,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     gap: '12px',
                     color: '#ffffff',
                     whiteSpace: 'nowrap',
+                    transform: adj.dir === 'E' || adj.dir === 'N' ? 'skewY(30deg)' : 'skewY(-30deg)',
+                    transformOrigin: 'bottom center',
                   }}
                 >
                   <div
