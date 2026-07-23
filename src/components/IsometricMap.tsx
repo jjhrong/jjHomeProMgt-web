@@ -1170,29 +1170,30 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             // Offset factor for multiple signs along the same border edge
             const offset = (idx - (count - 1) / 2) * 1.2
 
+            const dist = 5 // Shift T-Bar outwards by 5 grid tiles distance
             let tbarIsoX = 0
             let tbarIsoY = 0
 
             if (adj.dir === 'N') {
-              // North border (Top-left edge)
+              // North border (Top-left edge) - shift outwards by 5 tiles
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
-              tbarIsoX = (gx) * (TILE_WIDTH / 2)
-              tbarIsoY = (gx) * (TILE_HEIGHT / 2) - 10
+              tbarIsoX = (gx + dist) * (TILE_WIDTH / 2)
+              tbarIsoY = (gx - dist) * (TILE_HEIGHT / 2) - 10
             } else if (adj.dir === 'S') {
-              // South border (Bottom-right edge)
+              // South border (Bottom-right edge) - shift outwards by 5 tiles
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
-              tbarIsoX = (gx - (height - 1)) * (TILE_WIDTH / 2)
-              tbarIsoY = (gx + (height - 1)) * (TILE_HEIGHT / 2) + 30
+              tbarIsoX = (gx - (height - 1) - dist) * (TILE_WIDTH / 2)
+              tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30
             } else if (adj.dir === 'E') {
-              // East border (Top-right edge)
+              // East border (Top-right edge) - shift outwards by 5 tiles
               const gy = Math.min(height - 1, Math.max(0, Math.round(midY + offset)))
-              tbarIsoX = (width - 1 - gy) * (TILE_WIDTH / 2) + 45
-              tbarIsoY = (width - 1 + gy) * (TILE_HEIGHT / 2)
+              tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
+              tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2)
             } else if (adj.dir === 'W') {
-              // West border (Bottom-left edge)
+              // West border (Bottom-left edge) - shift outwards by 5 tiles
               const gy = Math.min(height - 1, Math.max(0, Math.round(midY + offset)))
-              tbarIsoX = (-gy) * (TILE_WIDTH / 2) - 45
-              tbarIsoY = (gy) * (TILE_HEIGHT / 2)
+              tbarIsoX = (-gy - dist) * (TILE_WIDTH / 2) - 45
+              tbarIsoY = (gy - dist) * (TILE_HEIGHT / 2)
             }
 
             return (
@@ -1217,13 +1218,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   className="hover:scale-105 transition-all duration-300 group"
                   style={{
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
-                    border: '2px solid #34d399',
-                    boxShadow: '0 12px 30px rgba(4, 120, 87, 0.6), 0 0 15px rgba(52, 211, 153, 0.4)',
-                    borderRadius: '14px',
-                    padding: '10px 18px',
+                    border: '2.5px solid #34d399',
+                    boxShadow: '0 14px 35px rgba(4, 120, 87, 0.65), 0 0 20px rgba(52, 211, 153, 0.5)',
+                    borderRadius: '16px',
+                    padding: '14px 24px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    gap: '12px',
                     color: '#ffffff',
                     whiteSpace: 'nowrap',
                   }}
@@ -1233,19 +1234,19 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '26px',
-                      height: '26px',
+                      width: '36px',
+                      height: '36px',
                       borderRadius: '50%',
                       background: 'rgba(255, 255, 255, 0.2)',
-                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
                     }}
                   >
-                    {adj.dir === 'N' && <ArrowUp className="w-4 h-4 text-emerald-200" />}
-                    {adj.dir === 'S' && <ArrowDown className="w-4 h-4 text-emerald-200" />}
-                    {adj.dir === 'W' && <ArrowLeft className="w-4 h-4 text-emerald-200" />}
-                    {adj.dir === 'E' && <ArrowRight className="w-4 h-4 text-emerald-200" />}
+                    {adj.dir === 'N' && <ArrowUp className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'S' && <ArrowDown className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'W' && <ArrowLeft className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'E' && <ArrowRight className="w-5 h-5 text-emerald-200" />}
                   </div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.04em' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
                     {adj.title}
                   </div>
                 </div>
@@ -1253,8 +1254,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 {/* T-Bar High-rise Metallic Support Pole */}
                 <div
                   style={{
-                    width: '10px',
-                    height: '60px',
+                    width: '12px',
+                    height: '80px',
                     background: 'linear-gradient(to right, #334155, #94a3b8, #1e293b)',
                     boxShadow: '2px 0 8px rgba(0,0,0,0.6)',
                   }}
@@ -1262,8 +1263,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 {/* T-Bar Concrete Base Anchor */}
                 <div
                   style={{
-                    width: '24px',
-                    height: '8px',
+                    width: '30px',
+                    height: '10px',
                     background: '#334155',
                     borderRadius: '3px',
                     border: '1px solid #64748b',
