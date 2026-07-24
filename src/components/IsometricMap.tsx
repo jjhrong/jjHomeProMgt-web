@@ -1339,7 +1339,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     gap: '12px',
                     color: '#ffffff',
                     whiteSpace: 'nowrap',
-                    transform: adj.dir === 'N' || adj.dir === 'E' || adj.dir === 'W' ? 'skewY(30deg)' : 'skewY(-30deg)',
+                    transform: adj.dir === 'E' || adj.dir === 'W' ? 'skewY(30deg)' : 'skewY(-30deg)',
                     transformOrigin: 'bottom center',
                   }}
                 >
@@ -1364,7 +1364,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
                 {/* Dual Pillar Legs (z-index: 1 置於告示板下方，露出部分一模一樣長 50px 且皆接在斜向下緣) */}
                 {(() => {
-                  const isPositiveSkew = adj.dir === 'N' || adj.dir === 'E' || adj.dir === 'W'
+                  const isPositiveSkew = adj.dir === 'E' || adj.dir === 'W'
                   const poleHeight = '65px'
                   const leftMarginTop = isPositiveSkew ? '-55px' : '25px'
                   const rightMarginTop = isPositiveSkew ? '25px' : '-55px'
