@@ -1369,7 +1369,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 }}
               />
 
-              {/* Phase 2 Placement Mode Cottage Preview (Col 6 矮房貼圖動態預覽) */}
+              {/* Phase 2 Placement Mode Building Sprite Preview (使用精準 PX 裁切繪製) */}
               {isPlacementMode &&
                 ((lockedGrid?.gridX === tile.gridX && lockedGrid?.gridY === tile.gridY) ||
                   (!lockedGrid && hoverGrid?.gridX === tile.gridX && hoverGrid?.gridY === tile.gridY)) && (
@@ -1377,15 +1377,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     style={{
                       position: 'absolute',
                       left: '50%',
-                      bottom: '-16px',
+                      bottom: '0px',
                       transform: 'translate(-50%, 0)',
-                      width: '110px',
-                      height: '140px',
-                      backgroundColor: 'transparent',
-                      backgroundImage: 'url(/buildings_1.webp)',
-                      backgroundSize: '1000% auto',
-                      backgroundPosition: `${((placementData?.spriteCol ?? 6) / 10) * 100}% 100%`,
-                      backgroundRepeat: 'no-repeat',
                       pointerEvents: 'none',
                       zIndex: depthIndex + 20,
                       opacity: lockedGrid ? 1.0 : 0.75,
@@ -1394,24 +1387,15 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                         : 'drop-shadow(0 0 12px rgba(110, 191, 139, 0.8))',
                     }}
                   >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-24px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: lockedGrid ? '#facc15' : '#6ebf8b',
-                        color: '#000000',
-                        padding: '2px 8px',
-                        borderRadius: '8px',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                      }}
-                    >
-                      {lockedGrid ? '預定建造點' : '預覽建造位置'}
-                    </div>
+                    <BuildingSpriteButton
+                      mapX={tile.gridX}
+                      mapY={tile.gridY}
+                      sheet_id={(placementData as any)?.sheet_id ?? '1'}
+                      spriteCol={placementData?.spriteCol ?? 6}
+                      spriteRow={placementData?.spriteRow ?? 0}
+                      buildingName={lockedGrid ? '預定建造點' : '預覽建造位置'}
+                      hasPermission={true}
+                    />
                   </div>
                 )}
 
