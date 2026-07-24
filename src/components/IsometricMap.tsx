@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
 import {
   Compass,
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  ArrowDownLeft,
+  ArrowUpLeft,
   ShieldAlert,
   ZoomIn,
   ZoomOut,
@@ -373,18 +373,30 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         }
       })
     }
-    // Guaranteed fallback demo T-Bar signposts (東區生態公園 & 東北區高山森林) if no neighbor maps exist in DB
+    // Guaranteed fallback demo T-Bar signposts (HOME_N, HOME_E, HOME_S, HOME_W) if no neighbor maps exist in DB
     return [
       {
-        dir: 'E',
-        name: 'Park',
-        title: '東區生態公園',
+        dir: 'N',
+        name: 'HOME_N',
+        title: 'HOME_N (北區)',
         hasPermission: true,
       },
       {
-        dir: 'N',
-        name: 'Mountain',
-        title: '東北區高山森林',
+        dir: 'E',
+        name: 'HOME_E',
+        title: 'HOME_E (東區)',
+        hasPermission: true,
+      },
+      {
+        dir: 'S',
+        name: 'HOME_S',
+        title: 'HOME_S (南區)',
+        hasPermission: true,
+      },
+      {
+        dir: 'W',
+        name: 'HOME_W',
+        title: 'HOME_W (西區)',
         hasPermission: true,
       },
     ]
@@ -1346,10 +1358,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       border: '1.5px solid rgba(255, 255, 255, 0.4)',
                     }}
                   >
-                    {adj.dir === 'N' && <ArrowUp className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'S' && <ArrowDown className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'W' && <ArrowLeft className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'E' && <ArrowRight className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'N' && <ArrowUpRight className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'E' && <ArrowDownRight className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'S' && <ArrowDownLeft className="w-5 h-5 text-emerald-200" />}
+                    {adj.dir === 'W' && <ArrowUpLeft className="w-5 h-5 text-emerald-200" />}
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
                     {adj.title}
