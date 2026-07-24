@@ -369,7 +369,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     const centerIsoY = (centerX + centerY) * (TILE_HEIGHT / 2)
     return { x: 0, y: -centerIsoY }
   })
-  // Zoom scale state (default 1.0 = 100%, clamped between 0.5 = 50% and 2.0 = 200%)
+  // Zoom scale state (default 1.0 = 100%, clamped between 0.5 = 50% and 2.5 = 250%)
   const [zoom, setZoom] = useState<number>(1.0)
   const [selectedTile, setSelectedTile] = useState<{ gridX: number; gridY: number } | null>(null)
   const outerContainerRef = useRef<HTMLDivElement>(null)
@@ -378,11 +378,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   const [fogState, setFogState] = useState<FogState>('covered')
 
   const handleZoomChange = (newZoom: number) => {
-    const clamped = Math.min(Math.max(newZoom, 0.5), 2.0)
+    const clamped = Math.min(Math.max(newZoom, 0.5), 2.5)
     setZoom(parseFloat(clamped.toFixed(2)))
   }
 
-  // Non-passive wheel event listener to prevent browser page scrolling when zooming map
+  // Non-passive wheel and touch event listeners to prevent browser page scrolling and HTML pinch zooming
   useEffect(() => {
     const container = outerContainerRef.current
     if (!container) return
@@ -391,14 +391,22 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       e.preventDefault()
       const delta = e.deltaY < 0 ? 0.08 : -0.08
       setZoom((prev) => {
-        const next = Math.min(Math.max(prev + delta, 0.5), 2.0)
+        const next = Math.min(Math.max(prev + delta, 0.5), 2.5)
         return parseFloat(next.toFixed(2))
       })
     }
 
+    const onTouchMovePrevent = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault()
+      }
+    }
+
     container.addEventListener('wheel', onWheel, { passive: false })
+    container.addEventListener('touchmove', onTouchMovePrevent, { passive: false })
     return () => {
       container.removeEventListener('wheel', onWheel)
+      container.removeEventListener('touchmove', onTouchMovePrevent)
     }
   }, [])
 
@@ -587,11 +595,19 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     return () => clearTimeout(timer)
   }, [homeFunction.id, homeFunction.name, homeFunction.subFunctions?.length])
 
-  // Dragging state for mouse/touch panning
+  // Dragging & Pinch state for mouse/touch panning and zooming
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [isMoved, setIsMoved] = useState(false)
+  const [pinchStartDist, setPinchStartDist] = useState<number | null>(null)
+  const [pinchStartZoom, setPinchStartZoom] = useState<number>(1.0)
+
+  const getTouchDistance = (t1: React.Touch | Touch, t2: React.Touch | Touch) => {
+    const dx = t1.clientX - t2.clientX
+    const dy = t1.clientY - t2.clientY
+    return Math.hypot(dx, dy)
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return
@@ -628,28 +644,45 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       setIsMoved(false)
       setDragStart({ x: touch.clientX, y: touch.clientY })
       setPanStart({ x: pan.x, y: pan.y })
+      setPinchStartDist(null)
+    } else if (e.touches.length === 2) {
+      setIsDragging(false)
+      const dist = getTouchDistance(e.touches[0], e.touches[1])
+      setPinchStartDist(dist)
+      setPinchStartZoom(zoom)
     }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1) return
-    e.preventDefault()
-    const touch = e.touches[0]
-    const dx = touch.clientX - dragStart.x
-    const dy = touch.clientY - dragStart.y
+    if (e.touches.length === 1 && isDragging) {
+      const touch = e.touches[0]
+      const dx = touch.clientX - dragStart.x
+      const dy = touch.clientY - dragStart.y
 
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      setIsMoved(true)
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        setIsMoved(true)
+      }
+
+      updatePan({
+        x: panStart.x + dx,
+        y: panStart.y + dy,
+      })
+    } else if (e.touches.length === 2 && pinchStartDist && pinchStartDist > 0) {
+      const currentDist = getTouchDistance(e.touches[0], e.touches[1])
+      const scaleFactor = currentDist / pinchStartDist
+      const newZoom = pinchStartZoom * scaleFactor
+      const clampedZoom = Math.min(Math.max(newZoom, 0.5), 2.5)
+      setZoom(parseFloat(clampedZoom.toFixed(2)))
     }
-
-    updatePan({
-      x: panStart.x + dx,
-      y: panStart.y + dy,
-    })
   }
 
-  const handleTouchEnd = () => {
-    setIsDragging(false)
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length < 2) {
+      setPinchStartDist(null)
+    }
+    if (e.touches.length === 0) {
+      setIsDragging(false)
+    }
   }
 
   const handleOpenPhase1 = () => {
@@ -943,7 +976,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           if (!showDirectGoButton) return null
 
           return (
-            <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <div
+              ref={dropdownRef}
+              style={{ position: 'relative' }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
@@ -1483,8 +1522,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         })()}
       </div>
 
-      {/* Floating Bottom-Right Zoom Controller (滾輪 / 拉條縮放控制器 50% ~ 200%) */}
+      {/* Floating Bottom-Right Zoom Controller (滾輪 / 拉條縮放控制器 50% ~ 250%) */}
       <div
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
           bottom: '20px',
@@ -1513,7 +1555,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         <input
           type="range"
           min="0.5"
-          max="2.0"
+          max="2.5"
           step="0.05"
           value={zoom}
           onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
@@ -1526,8 +1568,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
         <button
           onClick={() => handleZoomChange(zoom + 0.1)}
-          title="放大 (200%)"
-          disabled={zoom >= 2.0}
+          title="放大 (250%)"
+          disabled={zoom >= 2.5}
           className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-950/60 text-emerald-300 hover:text-white transition-all border border-emerald-500/30 cursor-pointer"
         >
           <ZoomIn className="w-4 h-4" />
@@ -1559,6 +1601,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       {/* Area Transition & Permission Alert Modal */}
       {transitionModal.open && (
         <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
             inset: 0,
@@ -1613,6 +1658,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       {/* Phase 1 Modal: Function Parameters Form */}
       {isPhase1ModalOpen && (
         <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
             inset: 0,
