@@ -3,6 +3,7 @@ import axios from 'axios'
 import {
   Compass,
   ArrowLeft,
+  ArrowRight,
   ShieldAlert,
   ZoomIn,
   ZoomOut,
@@ -1337,6 +1338,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     borderRadius: '16px',
                     padding: '14px 24px',
                     display: 'flex',
+                    flexDirection: adj.dir === 'N' || adj.dir === 'E' ? 'row-reverse' : 'row',
                     alignItems: 'center',
                     gap: '12px',
                     color: '#ffffff',
@@ -1357,7 +1359,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       border: '1.5px solid rgba(255, 255, 255, 0.4)',
                     }}
                   >
-                    <ArrowLeft className="w-5 h-5 text-emerald-200" />
+                    {adj.dir === 'N' || adj.dir === 'E' ? (
+                      <ArrowRight className="w-5 h-5 text-emerald-200" />
+                    ) : (
+                      <ArrowLeft className="w-5 h-5 text-emerald-200" />
+                    )}
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
                     {adj.title}
