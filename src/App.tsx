@@ -1286,6 +1286,108 @@ function App() {
     }
   }
 
+  // Reusable Page Action Toolbar Renderer (適用於 PAGE 與 POST 功能頁面與彈窗)
+  const renderActionToolbar = (func: any) => {
+    if (!func) return null
+
+    const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
+    const uAny = user as any
+    const isUserAdmin =
+      uAny?.role === 'SYS_Admin' ||
+      uAny?.role === 'FUNCTION_Admin' ||
+      uAny?.Role === 'SYS_Admin' ||
+      uAny?.Role === 'FUNCTION_Admin' ||
+      String(uAny?.role || '').toLowerCase().includes('admin') ||
+      String(uAny?.Role || '').toLowerCase().includes('admin')
+
+    const canAddSubFunc = func.type === 'PAGE' && isUserAdmin
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+        {/* 1. 我的最愛 (所有人有權限 依最愛與否皆為可點擊互動式按鈕) */}
+        {isFav ? (
+          <button
+            type="button"
+            onClick={() => handleToggleFavorite(func.id)}
+            title="點擊取消最愛"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'rgba(245, 158, 11, 0.22)',
+              border: '1px solid rgba(245, 158, 11, 0.55)',
+              color: '#f59e0b',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-amber-900/50 hover:scale-105 hover:border-amber-400"
+          >
+            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <span>已最愛</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => handleToggleFavorite(func.id)}
+            title="點擊加入最愛"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              color: '#f59e0b',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-amber-950/40 hover:scale-105"
+          >
+            <Star className="w-4 h-4 text-amber-400" />
+            <span>最愛+</span>
+          </button>
+        )}
+
+        {/* 2. 新增子功能 (僅PAGE頁面有 僅SYS_Admin或FUNCTION_Admin有權限) */}
+        {canAddSubFunc && (
+          <button
+            type="button"
+            onClick={() => {
+              setNewSubFuncParams({ name: '', description: '', type: 'PAGE' })
+              setAddSubFuncError('')
+              setIsAddSubFuncModalOpen(true)
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'rgba(110, 191, 139, 0.15)',
+              border: '1px solid rgba(110, 191, 139, 0.4)',
+              color: '#6ebf8b',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-emerald-950/40 hover:scale-105"
+          >
+            <Plus className="w-4 h-4 text-emerald-400" />
+            <span>新增子功能</span>
+          </button>
+        )}
+      </div>
+    )
+  }
+
   // General layout function block renderer
   const renderFunctionBlocks = (func: any) => {
     if (!func) return null
@@ -1312,96 +1414,7 @@ function App() {
             </h3>
 
             {/* Page Action Toolbar (從左邊開始排序) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {/* 1. 我的最愛 (所有人有權限 依最愛與否皆為可點擊互動式按鈕) */}
-              {(() => {
-                const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
-
-                if (isFav) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFavorite(func.id)}
-                      title="點擊取消最愛"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '5px 14px',
-                        borderRadius: '12px',
-                        background: 'rgba(245, 158, 11, 0.22)',
-                        border: '1px solid rgba(245, 158, 11, 0.55)',
-                        color: '#f59e0b',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      className="hover:bg-amber-900/50 hover:scale-105 hover:border-amber-400"
-                    >
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>已最愛</span>
-                    </button>
-                  )
-                }
-
-                return (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFavorite(func.id)}
-                    title="點擊加入最愛"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '5px 14px',
-                      borderRadius: '12px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                      color: '#f59e0b',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                    className="hover:bg-amber-950/40 hover:scale-105"
-                  >
-                    <Star className="w-4 h-4 text-amber-400" />
-                    <span>最愛+</span>
-                  </button>
-                )
-              })()}
-
-              {/* 2. 新增子功能 (僅PAGE頁面有 僅SYS_Admin或FUNCTION_Admin有權限) */}
-              {func.type === 'PAGE' && (user?.role === 'SYS_Admin' || user?.role === 'FUNCTION_Admin') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewSubFuncParams({ name: '', description: '', type: 'PAGE' })
-                    setAddSubFuncError('')
-                    setIsAddSubFuncModalOpen(true)
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '5px 14px',
-                    borderRadius: '12px',
-                    background: 'rgba(110, 191, 139, 0.15)',
-                    border: '1px solid rgba(110, 191, 139, 0.4)',
-                    color: '#6ebf8b',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  className="hover:bg-emerald-950/40 hover:scale-105"
-                >
-                  <Plus className="w-4 h-4 text-emerald-400" />
-                  <span>新增子功能</span>
-                </button>
-              )}
-            </div>
+            {renderActionToolbar(func)}
           </div>
         )}
 
@@ -2128,9 +2141,12 @@ function App() {
                 </span>
                 {currentFunction.description || currentFunction.name}
               </h2>
-              <p style={{ fontSize: '0.85rem', color: '#a1b5aa', marginTop: '4px' }}>
+              <p style={{ fontSize: '0.85rem', color: '#a1b5aa', marginTop: '4px', marginBottom: '8px' }}>
                 功能名稱: {currentFunction.name}
               </p>
+
+              {/* Page Action Toolbar (最愛按鈕) */}
+              {renderActionToolbar(currentFunction)}
             </div>
 
             {/* Post Board Component */}
