@@ -584,7 +584,7 @@ const SettingAuthTable: React.FC<{ token: string | null }> = ({ token }) => {
     if (!token) return;
     try {
       // 1. Fetch all users
-      const usersRes = await axios.get(`${API_BASE_URL}/api/users`, {
+      const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(normalizeStatus(usersRes.data) || []);
@@ -602,7 +602,8 @@ const SettingAuthTable: React.FC<{ token: string | null }> = ({ token }) => {
       const userMaps = userMapsRes.data || [];
       const userChecked: { [key: string]: boolean } = {};
       userMaps.forEach((m: any) => {
-        userChecked[m.mapBID] = true;
+        const bid = m.mapBID || m.map_b_id;
+        if (bid) userChecked[bid] = true;
       });
       setCheckedUserIds(userChecked);
 
@@ -613,7 +614,8 @@ const SettingAuthTable: React.FC<{ token: string | null }> = ({ token }) => {
       const funcMaps = funcMapsRes.data || [];
       const funcChecked: { [key: string]: boolean } = {};
       funcMaps.forEach((m: any) => {
-        funcChecked[m.mapBID] = true;
+        const bid = m.mapBID || m.map_b_id;
+        if (bid) funcChecked[bid] = true;
       });
       setCheckedFunctionIds(funcChecked);
     } catch (err) {
