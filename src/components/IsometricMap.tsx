@@ -281,9 +281,6 @@ const SignpostItem: React.FC<{
             alignItems: 'center',
             filter:
               'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
-            ...(adj.dir === 'N' || adj.dir === 'S'
-              ? { transform: 'scale(0.8)', transformOrigin: 'top center' }
-              : {}),
           }}
         >
           <div
