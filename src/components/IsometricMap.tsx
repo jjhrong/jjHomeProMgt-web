@@ -132,10 +132,6 @@ const BUILDING_SPRITE_OPTIONS = [
   { label: '別墅', spriteCol: 7, spriteRow: 0 },
   { label: '大樓', spriteCol: 8, spriteRow: 0 },
   { label: '摩天大樓', spriteCol: 9, spriteRow: 0 },
-  { label: '樹木1', spriteCol: 2, spriteRow: 0 },
-  { label: '樹木2', spriteCol: 3, spriteRow: 0 },
-  { label: '樹木3', spriteCol: 4, spriteRow: 0 },
-  { label: '森林', spriteCol: 5, spriteRow: 0 },
 ]
 
 const SignpostItem: React.FC<{
@@ -1769,14 +1765,30 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       >
                         <div
                           style={{
-                            width: '46px',
-                            height: '46px',
-                            backgroundImage: 'url(/buildings_1.webp)',
-                            backgroundSize: '1000% auto',
-                            backgroundPosition: `${(opt.spriteCol / 10) * 100}% 100%`,
-                            backgroundRepeat: 'no-repeat',
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'center',
+                            background: 'rgba(0, 0, 0, 0.25)',
                           }}
-                        />
+                        >
+                          <div
+                            style={{
+                              width: '100px',
+                              height: '144px',
+                              flexShrink: 0,
+                              backgroundImage: 'url(/buildings_1.webp)',
+                              backgroundSize: '1000px auto',
+                              backgroundPosition: `-${20 + opt.spriteCol * 96}px -1224px`,
+                              backgroundRepeat: 'no-repeat',
+                              transform: 'scale(0.46)',
+                              transformOrigin: 'bottom center',
+                            }}
+                          />
+                        </div>
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isSelected ? '#6ebf8b' : '#94a3b8' }}>
                           {opt.label}
                         </span>
