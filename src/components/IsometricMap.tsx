@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
 import {
   Compass,
-  ArrowUpRight,
-  ArrowDownRight,
-  ArrowDownLeft,
-  ArrowUpLeft,
+  ArrowLeft,
   ShieldAlert,
   ZoomIn,
   ZoomOut,
@@ -1358,10 +1355,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                       border: '1.5px solid rgba(255, 255, 255, 0.4)',
                     }}
                   >
-                    {adj.dir === 'N' && <ArrowUpRight className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'E' && <ArrowDownRight className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'S' && <ArrowDownLeft className="w-5 h-5 text-emerald-200" />}
-                    {adj.dir === 'W' && <ArrowUpLeft className="w-5 h-5 text-emerald-200" />}
+                    <ArrowLeft className="w-5 h-5 text-emerald-200" />
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
                     {adj.title}
