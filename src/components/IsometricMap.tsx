@@ -138,6 +138,179 @@ const BUILDING_SPRITE_OPTIONS = [
   { label: '森林', spriteCol: 5, spriteRow: 0 },
 ]
 
+const SignpostItem: React.FC<{
+  adj: { dir: string; name: string; title: string; hasPermission?: boolean }
+  index: number
+  tbarIsoX: number
+  tbarIsoY: number
+  onBoundaryClick: (e: React.MouseEvent, dir: string, name: string) => void
+}> = ({ adj, index, tbarIsoX, tbarIsoY, onBoundaryClick }) => {
+  const signboardRef = useRef<HTMLDivElement>(null)
+  const [panelWidth, setPanelWidth] = useState<number>(200)
+
+  useEffect(() => {
+    if (signboardRef.current) {
+      setPanelWidth(signboardRef.current.offsetWidth)
+    }
+  }, [adj.title])
+
+  const isSkewPositive = adj.dir === 'E' || adj.dir === 'W'
+
+  // Calculate exact vertical offset at leg position (24px padding from panel outer edge)
+  const halfW = Math.max(10, panelWidth / 2 - 24)
+  const deltaY = halfW * Math.tan((30 * Math.PI) / 180) // tan(30°) ≈ 0.57735
+
+  // Left leg and right leg top margins (with 15px hidden behind panel)
+  const leftMarginTop = `${(isSkewPositive ? -deltaY : deltaY) - 15}px`
+  const rightMarginTop = `${(isSkewPositive ? deltaY : -deltaY) - 15}px`
+
+  const poleHeight = '65px'
+
+  return (
+    <div
+      key={`${adj.dir}-${adj.name}-${index}`}
+      onClick={(e) => onBoundaryClick(e, adj.dir, adj.name)}
+      className="opacity-50 hover:opacity-100 transition-opacity duration-300 group"
+      style={{
+        position: 'absolute',
+        left: `${tbarIsoX}px`,
+        top: `${tbarIsoY}px`,
+        transform: 'translate(-50%, -100%)',
+        zIndex: 9999,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        pointerEvents: 'auto',
+      }}
+    >
+      {/* Notice Board Signboard Box (z-index: 10 確保遮蓋腳架頂端) */}
+      <div
+        ref={signboardRef}
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
+          border: '2px solid #34d399',
+          filter:
+            adj.dir === 'N' || adj.dir === 'S'
+              ? 'drop-shadow(-1px -1px 0px #0e382b) drop-shadow(-2px -2px 0px #0e382b) drop-shadow(-3px -3px 0px #0e382b) drop-shadow(-4px -4px 0px #0e382b)'
+              : 'drop-shadow(1px -1px 0px #0e382b) drop-shadow(2px -2px 0px #0e382b) drop-shadow(3px -3px 0px #0e382b) drop-shadow(4px -4px 0px #0e382b)',
+          borderRadius: '16px',
+          padding: '14px 24px',
+          display: 'flex',
+          flexDirection: adj.dir === 'N' || adj.dir === 'E' ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          gap: '12px',
+          color: '#ffffff',
+          whiteSpace: 'nowrap',
+          transform: isSkewPositive ? 'skewY(30deg)' : 'skewY(-30deg)',
+          transformOrigin: 'bottom center',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.2)',
+            border: '1.5px solid rgba(255, 255, 255, 0.4)',
+          }}
+        >
+          {adj.dir === 'N' || adj.dir === 'E' ? (
+            <ArrowRight className="w-5 h-5 text-emerald-200" />
+          ) : (
+            <ArrowLeft className="w-5 h-5 text-emerald-200" />
+          )}
+        </div>
+        <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
+          {adj.title}
+        </div>
+      </div>
+
+      {/* Dual Pillar Legs (z-index: 1 置於告示板下方，根據面板寬度與 tan(30deg) 斜率動態計算頂端貼合，露出長度完全相同) */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '0 24px',
+          pointerEvents: 'none',
+        }}
+      >
+        {/* Left Support Leg */}
+        <div
+          style={{
+            marginTop: leftMarginTop,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            filter:
+              'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+            ...(adj.dir === 'E' || adj.dir === 'W'
+              ? { transform: 'scale(0.8)', transformOrigin: 'top center' }
+              : {}),
+          }}
+        >
+          <div
+            style={{
+              width: '8px',
+              height: poleHeight,
+              background: '#475569',
+            }}
+          />
+          <div
+            style={{
+              width: '22px',
+              height: '8px',
+              background: '#334155',
+              borderRadius: '3px',
+              border: '1px solid #64748b',
+            }}
+          />
+        </div>
+
+        {/* Right Support Leg */}
+        <div
+          style={{
+            marginTop: rightMarginTop,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            filter:
+              'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
+            ...(adj.dir === 'N' || adj.dir === 'S'
+              ? { transform: 'scale(0.8)', transformOrigin: 'top center' }
+              : {}),
+          }}
+        >
+          <div
+            style={{
+              width: '8px',
+              height: poleHeight,
+              background: '#475569',
+            }}
+          />
+          <div
+            style={{
+              width: '22px',
+              height: '8px',
+              background: '#334155',
+              borderRadius: '3px',
+              border: '1px solid #64748b',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const IsometricMap: React.FC<IsometricMapProps> = ({
   homeFunction,
   token,
@@ -1307,155 +1480,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             }
 
             return (
-              <div
+              <SignpostItem
                 key={`${adj.dir}-${adj.name}-${index}`}
-                onClick={(e) => handleBoundaryClick(e, adj.dir, adj.name)}
-                className="opacity-50 hover:opacity-100 transition-opacity duration-300 group"
-                style={{
-                  position: 'absolute',
-                  left: `${tbarIsoX}px`,
-                  top: `${tbarIsoY}px`,
-                  transform: 'translate(-50%, -100%)',
-                  zIndex: 9999,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                }}
-              >
-                {/* Notice Board Signboard Box (z-index: 10 確保遮蓋腳架頂端) */}
-                <div
-                  style={{
-                    position: 'relative',
-                    zIndex: 10,
-                    background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
-                    border: '2px solid #34d399',
-                    filter:
-                      adj.dir === 'N' || adj.dir === 'S'
-                        ? 'drop-shadow(-1px -1px 0px #0e382b) drop-shadow(-2px -2px 0px #0e382b) drop-shadow(-3px -3px 0px #0e382b) drop-shadow(-4px -4px 0px #0e382b)'
-                        : 'drop-shadow(1px -1px 0px #0e382b) drop-shadow(2px -2px 0px #0e382b) drop-shadow(3px -3px 0px #0e382b) drop-shadow(4px -4px 0px #0e382b)',
-                    borderRadius: '16px',
-                    padding: '14px 24px',
-                    display: 'flex',
-                    flexDirection: adj.dir === 'N' || adj.dir === 'E' ? 'row-reverse' : 'row',
-                    alignItems: 'center',
-                    gap: '12px',
-                    color: '#ffffff',
-                    whiteSpace: 'nowrap',
-                    transform: adj.dir === 'E' || adj.dir === 'W' ? 'skewY(30deg)' : 'skewY(-30deg)',
-                    transformOrigin: 'bottom center',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.2)',
-                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                    }}
-                  >
-                    {adj.dir === 'N' || adj.dir === 'E' ? (
-                      <ArrowRight className="w-5 h-5 text-emerald-200" />
-                    ) : (
-                      <ArrowLeft className="w-5 h-5 text-emerald-200" />
-                    )}
-                  </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.04em' }}>
-                    {adj.title}
-                  </div>
-                </div>
-
-                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，露出部分一模一樣長 50px 且皆接在斜向下緣) */}
-                {(() => {
-                  const isPositiveSkew = adj.dir === 'E' || adj.dir === 'W'
-                  const poleHeight = '65px'
-                  const leftMarginTop = isPositiveSkew ? '-55px' : '25px'
-                  const rightMarginTop = isPositiveSkew ? '25px' : '-55px'
-
-                  return (
-                    <div
-                      style={{
-                        position: 'relative',
-                        zIndex: 1,
-                        width: '100%',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        padding: '0 24px',
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      {/* Left Support Leg */}
-                      <div
-                        style={{
-                          marginTop: leftMarginTop,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          filter:
-                            'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
-                          ...(adj.dir === 'E' || adj.dir === 'W'
-                            ? { transform: 'scale(0.8)', transformOrigin: 'top center' }
-                            : {}),
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: '8px',
-                            height: poleHeight,
-                            background: '#475569',
-                          }}
-                        />
-                        <div
-                          style={{
-                            width: '22px',
-                            height: '8px',
-                            background: '#334155',
-                            borderRadius: '3px',
-                            border: '1px solid #64748b',
-                          }}
-                        />
-                      </div>
-
-                      {/* Right Support Leg */}
-                      <div
-                        style={{
-                          marginTop: rightMarginTop,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          filter:
-                            'drop-shadow(1px 1px 0px #1e293b) drop-shadow(2px 2px 0px #1e293b) drop-shadow(3px 3px 0px #0f172a)',
-                          ...(adj.dir === 'N' || adj.dir === 'S'
-                            ? { transform: 'scale(0.8)', transformOrigin: 'top center' }
-                            : {}),
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: '8px',
-                            height: poleHeight,
-                            background: '#475569',
-                          }}
-                        />
-                        <div
-                          style={{
-                            width: '22px',
-                            height: '8px',
-                            background: '#334155',
-                            borderRadius: '3px',
-                            border: '1px solid #64748b',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
+                adj={adj}
+                index={index}
+                tbarIsoX={tbarIsoX}
+                tbarIsoY={tbarIsoY}
+                onBoundaryClick={handleBoundaryClick}
+              />
             )
           })
         })()}
