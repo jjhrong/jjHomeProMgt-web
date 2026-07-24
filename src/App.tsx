@@ -1368,7 +1368,7 @@ function App() {
               )
             )}
             {func.type === 'POST' && (
-              <PostBoard func={func} token={token} apiBaseUrl={API_BASE_URL} user={user} />
+              <PostBoard func={func} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} />
             )}
           </div>
         )}
@@ -2043,7 +2043,7 @@ function App() {
             </div>
 
             {/* Post Board Component */}
-            <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} />
+            <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} />
           </div>
         </div>
       )}

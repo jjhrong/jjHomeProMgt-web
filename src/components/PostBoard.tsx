@@ -26,6 +26,7 @@ interface PostBoardProps {
   token: string | null
   apiBaseUrl: string
   user: any
+  onSelectUser?: (user: any) => void
 }
 
 interface PostItem {
@@ -45,20 +46,24 @@ interface PostItem {
   nickname?: string
   avatarUrl?: string
   avatar_url?: string
+  userId?: string
+  user_id?: string
 }
 
 interface CommentItem {
   id: string
   postId: string
   userId: string
+  user_id?: string
   content: string
   status: number
   lmDate: string
   nickname?: string
   avatarUrl?: string
+  avatar_url?: string
 }
 
-export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user: _user }) => {
+export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user: _user, onSelectUser }) => {
   const [posts, setPosts] = useState<PostItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -469,42 +474,61 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                 {(() => {
                   const authorName = post.nickname || post.lmUser || '未知使用者'
                   const authorAvatar = post.avatarUrl || post.avatar_url
+                  const authorUserId = post.userId || post.user_id || post.lmUser
+
+                  const handleAuthorClick = (e: React.MouseEvent) => {
+                    e.stopPropagation()
+                    if (onSelectUser && authorUserId) {
+                      onSelectUser({ id: authorUserId })
+                    }
+                  }
 
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                      {authorAvatar ? (
-                        <img
-                          src={authorAvatar}
-                          alt={authorName}
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                            border: '1px solid rgba(163, 198, 175, 0.3)',
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #2d543e 0%, #1c3829 100%)',
-                            border: '1px solid rgba(163, 198, 175, 0.3)',
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                          }}
-                        >
-                          <User className="w-5 h-5 text-emerald-300" />
-                        </div>
-                      )}
+                      <div
+                        onClick={handleAuthorClick}
+                        className="cursor-pointer hover:scale-105 transition-transform"
+                        title={`檢視 ${authorName} 的個人名片`}
+                      >
+                        {authorAvatar ? (
+                          <img
+                            src={authorAvatar}
+                            alt={authorName}
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              border: '1px solid rgba(163, 198, 175, 0.3)',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #2d543e 0%, #1c3829 100%)',
+                              border: '1px solid rgba(163, 198, 175, 0.3)',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '1rem',
+                            }}
+                          >
+                            <User className="w-5 h-5 text-emerald-300" />
+                          </div>
+                        )}
+                      </div>
                       <div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}>
+                        <div
+                          onClick={handleAuthorClick}
+                          className="cursor-pointer hover:underline hover:text-emerald-400 transition-colors"
+                          title={`檢視 ${authorName} 的個人名片`}
+                          style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f0f5f2' }}
+                        >
                           {authorName}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#7a9485' }}>
@@ -615,38 +639,93 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                       <div style={{ fontSize: '0.85rem', color: '#7a9485', padding: '10px 0' }}>載入回應中...</div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                        {postComments.map((cmt) => (
-                          <div
-                            key={cmt.id}
-                            style={{
-                              padding: '10px 14px',
-                              borderRadius: '12px',
-                              background: 'rgba(255, 255, 255, 0.025)',
-                              border: '1px solid rgba(255, 255, 255, 0.05)',
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e0eae4' }}>
-                                {cmt.nickname || cmt.userId}
-                              </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.7rem', color: '#688273' }}>
-                                  {formatDate(cmt.lmDate)}
-                                </span>
-                                <button
-                                  onClick={() => handleDeleteComment(post.id, cmt.id)}
-                                  title="刪除回應"
-                                  className="text-slate-500 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                        {postComments.map((cmt) => {
+                          const commenterName = cmt.nickname || cmt.userId
+                          const commenterAvatar = cmt.avatarUrl || cmt.avatar_url
+                          const commenterUserId = cmt.userId || cmt.user_id
+
+                          const handleCommenterClick = (e: React.MouseEvent) => {
+                            e.stopPropagation()
+                            if (onSelectUser && commenterUserId) {
+                              onSelectUser({ id: commenterUserId })
+                            }
+                          }
+
+                          return (
+                            <div
+                              key={cmt.id}
+                              style={{
+                                padding: '10px 14px',
+                                borderRadius: '12px',
+                                background: 'rgba(255, 255, 255, 0.025)',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {commenterAvatar ? (
+                                    <img
+                                      src={commenterAvatar}
+                                      alt={commenterName}
+                                      onClick={handleCommenterClick}
+                                      className="cursor-pointer hover:scale-105 transition-transform"
+                                      title={`檢視 ${commenterName} 的個人名片`}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '1px solid rgba(163, 198, 175, 0.3)',
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      onClick={handleCommenterClick}
+                                      className="cursor-pointer hover:scale-105 transition-transform"
+                                      title={`檢視 ${commenterName} 的個人名片`}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, #2d543e 0%, #1c3829 100%)',
+                                        border: '1px solid rgba(163, 198, 175, 0.3)',
+                                        color: '#ffffff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      <User className="w-3.5 h-3.5 text-emerald-300" />
+                                    </div>
+                                  )}
+                                  <span
+                                    onClick={handleCommenterClick}
+                                    className="cursor-pointer hover:underline hover:text-emerald-400 transition-colors"
+                                    title={`檢視 ${commenterName} 的個人名片`}
+                                    style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e0eae4' }}
+                                  >
+                                    {commenterName}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#688273' }}>
+                                    {formatDate(cmt.lmDate)}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteComment(post.id, cmt.id)}
+                                    title="刪除回應"
+                                    className="text-slate-500 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
+                              <p style={{ fontSize: '0.875rem', color: '#b2c7bc', margin: 0, lineHeight: '1.5' }}>
+                                {cmt.content}
+                              </p>
                             </div>
-                            <p style={{ fontSize: '0.875rem', color: '#b2c7bc', margin: 0, lineHeight: '1.5' }}>
-                              {cmt.content}
-                            </p>
-                          </div>
-                        ))}
+                          )
+                        })}
 
                         {postComments.length === 0 && (
                           <div style={{ fontSize: '0.85rem', color: '#688273', fontStyle: 'italic' }}>
