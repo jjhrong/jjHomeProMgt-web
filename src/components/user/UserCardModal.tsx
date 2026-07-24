@@ -102,7 +102,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   if (isLoading) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+        style={{ zIndex: 2500 }}
         onClick={onClose}
       >
         <div
@@ -119,7 +120,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   if (error && !cardDetails) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+        style={{ zIndex: 2500 }}
         onClick={onClose}
       >
         <div
@@ -152,7 +154,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   const isPending = cardDetails.friend_status === 0
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
+    <div className="modal-overlay" style={{ zIndex: 2500 }} onClick={onClose}>
       <div
         className="glass-panel modal-content"
         onClick={(e) => e.stopPropagation()}

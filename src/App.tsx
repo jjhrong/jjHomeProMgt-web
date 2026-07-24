@@ -1839,7 +1839,7 @@ function App() {
 
       {/* 2. Edit Profile Modal */}
       {showProfileModal && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+        <div className="modal-overlay" style={{ zIndex: 3000 }}>
           <form className="glass-panel modal-content" onSubmit={handleSaveProfile} style={{ gap: '20px' }}>
             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" strokeWidth="2.5">
