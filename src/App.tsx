@@ -963,9 +963,6 @@ function App() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [hasSettingPermission, setHasSettingPermission] = useState<boolean>(false)
 
-  // Route & Function Loading Mask state
-  const [isRouteLoading, setIsRouteLoading] = useState(false)
-
   // Add Sub-Function Modal state variables
   const [isAddSubFuncModalOpen, setIsAddSubFuncModalOpen] = useState(false)
   const [newSubFuncParams, setNewSubFuncParams] = useState({
@@ -1148,34 +1145,33 @@ function App() {
       return
     }
 
-    setIsRouteLoading(true)
-    try {
-      let functionName = path.slice(1)
-      if (functionName === '') {
-        setIs404(false)
-        try {
-          const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
-            headers: {
-              Authorization: `Bearer ${tokenVal}`
-            }
-          })
-          const funcData = response.data
-          setCurrentFunction(normalizeStatus(funcData))
-          setBackendError(null)
-        } catch (err) {
-          setCurrentFunction(homeFunction)
-        }
-        return
-      }
-
-      // If nested path, it's an invalid function name
-      if (functionName.includes('/')) {
-        setIs404(true)
-        setCurrentFunction(null)
-        return
-      }
-
+    let functionName = path.slice(1)
+    if (functionName === '') {
       setIs404(false)
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+          headers: {
+            Authorization: `Bearer ${tokenVal}`
+          }
+        })
+        const funcData = response.data
+        setCurrentFunction(normalizeStatus(funcData))
+        setBackendError(null)
+      } catch (err) {
+        setCurrentFunction(homeFunction)
+      }
+      return
+    }
+
+    // If nested path, it's an invalid function name
+    if (functionName.includes('/')) {
+      setIs404(true)
+      setCurrentFunction(null)
+      return
+    }
+
+    setIs404(false)
+    try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
         headers: {
           Authorization: `Bearer ${tokenVal}`
@@ -1191,8 +1187,6 @@ function App() {
       if (!err.response) {
         setBackendError('網路連線失敗，無法連接到後端伺服器。')
       }
-    } finally {
-      setIsRouteLoading(false)
     }
   }
 
@@ -2298,33 +2292,6 @@ function App() {
                 {isSubFuncSubmitting ? '處理中...' : '確認新增'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-      {/* Global Route Navigation & Permission Verification Loading Mask */}
-      {isRouteLoading && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(6, 12, 9, 0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '16px',
-            color: '#f0f5f2',
-            animation: 'fadeIn 0.15s ease-out',
-          }}
-        >
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#6ebf8b' }}>
-            載入中，請稍候...
-          </div>
-          <div style={{ fontSize: '0.85rem', color: '#a1b5aa' }}>
-            正在讀取功能頁面與驗證系統存取權限
           </div>
         </div>
       )}
