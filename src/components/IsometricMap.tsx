@@ -1277,9 +1277,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               tbarIsoX = (gx - (height - 1) - dist) * (TILE_WIDTH / 2)
               tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30
             } else if (adj.dir === 'E') {
-              // East border (Top-right edge) - shift outwards by 6 tiles and down along edge by 3 tiles
+              // East border (Top-right edge) - shift outwards by 6 tiles and up-right along edge by 1 tile
               const dist = 6
-              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + 3 + offset)))
+              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + 1 + offset)))
               tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
               tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2)
             } else if (adj.dir === 'W') {
@@ -1350,13 +1350,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   </div>
                 </div>
 
-                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，依照面板斜度調整各自 top 與高度) */}
+                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，雙腳架等長 65px 並各自接在斜向下緣) */}
                 {(() => {
                   const isPositiveSkew = adj.dir === 'E' || adj.dir === 'N'
-                  const leftMarginTop = isPositiveSkew ? '-42px' : '38px'
-                  const leftPoleHeight = isPositiveSkew ? '105px' : '25px'
-                  const rightMarginTop = isPositiveSkew ? '38px' : '-42px'
-                  const rightPoleHeight = isPositiveSkew ? '25px' : '105px'
+                  const poleHeight = '65px'
+                  const leftMarginTop = isPositiveSkew ? '-20px' : '20px'
+                  const rightMarginTop = isPositiveSkew ? '20px' : '-20px'
 
                   return (
                     <div
@@ -1384,7 +1383,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                         <div
                           style={{
                             width: '8px',
-                            height: leftPoleHeight,
+                            height: poleHeight,
                             background: '#475569',
                           }}
                         />
@@ -1413,7 +1412,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                         <div
                           style={{
                             width: '8px',
-                            height: rightPoleHeight,
+                            height: poleHeight,
                             background: '#475569',
                           }}
                         />
