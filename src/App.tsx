@@ -1291,7 +1291,7 @@ function App() {
     if (!func) return null
 
     const isHomeType = func.type === 'HOME' || func.name === 'Home'
-    const showFirst = func.name && func.name.toLowerCase() !== 'home'
+    const showFirst = !isHomeType && func.name && func.name.toLowerCase() !== 'home'
     const showSecond = isHomeType || func.name === 'User' || func.type === 'SETT' || func.type === 'PAGE' || func.type === 'POST'
     const showThird = !isHomeType && func.subFunctions && func.subFunctions.length > 0
 
