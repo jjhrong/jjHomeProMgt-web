@@ -6,7 +6,7 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
-import { Settings, LogOut, User, AlertTriangle, Star } from 'lucide-react'
+import { Settings, LogOut, User, AlertTriangle, Star, Plus, X } from 'lucide-react'
 import { IsometricMap } from './components/IsometricMap'
 import { PostBoard } from './components/PostBoard'
 
@@ -963,6 +963,55 @@ function App() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [hasSettingPermission, setHasSettingPermission] = useState<boolean>(false)
 
+  // Add Sub-Function Modal state variables
+  const [isAddSubFuncModalOpen, setIsAddSubFuncModalOpen] = useState(false)
+  const [newSubFuncParams, setNewSubFuncParams] = useState({
+    name: '',
+    description: '',
+    type: 'PAGE',
+  })
+  const [addSubFuncError, setAddSubFuncError] = useState('')
+  const [isSubFuncSubmitting, setIsSubFuncSubmitting] = useState(false)
+
+  const handleCreateSubFunction = async (parentFuncId: string) => {
+    if (!newSubFuncParams.name.trim()) {
+      setAddSubFuncError('請輸入功能英文名稱 (Name)')
+      return
+    }
+    if (!newSubFuncParams.description.trim()) {
+      setAddSubFuncError('請輸入中文描述名稱 (Description)')
+      return
+    }
+    setIsSubFuncSubmitting(true)
+    setAddSubFuncError('')
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/v1/functions/building`,
+        {
+          p_id: parentFuncId,
+          name: newSubFuncParams.name.trim(),
+          description: newSubFuncParams.description.trim(),
+          type: newSubFuncParams.type,
+          spriteCol: 6,
+          spriteRow: 0,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      setIsSubFuncSubmitting(false)
+      setIsAddSubFuncModalOpen(false)
+      setNewSubFuncParams({ name: '', description: '', type: 'PAGE' })
+      validateRoute(token, user)
+      fetchHomeFunction(token)
+    } catch (err: any) {
+      console.error('Failed to create sub-function:', err)
+      setIsSubFuncSubmitting(false)
+      const msg = err.response?.data?.error || '新增子功能失敗，請檢查輸入參數或系統權限。'
+      setAddSubFuncError(msg)
+    }
+  }
+
   // Configure Axios global interceptor for 401 errors
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
@@ -1248,9 +1297,9 @@ function App() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* First Block: Function description and Favorite status component */}
+        {/* First Block: Function description and Action Toolbar */}
         {showFirst && (
-          <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <h3 style={{ fontSize: '1.4rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1262,57 +1311,90 @@ function App() {
               {func.description}
             </h3>
 
-            {/* Favorite Status Component */}
-            {(() => {
-              const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
+            {/* Page Action Toolbar (從左邊開始排序) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* 1. 我的最愛 (所有人有權限 依最愛與否看是按鈕還是label) */}
+              {(() => {
+                const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
 
-              if (isFav) {
+                if (isFav) {
+                  return (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '5px 12px',
+                        borderRadius: '12px',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        color: '#f59e0b',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      <span>最愛</span>
+                    </div>
+                  )
+                }
+
                 return (
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFavorite(func.id)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      padding: '5px 12px',
+                      padding: '5px 14px',
                       borderRadius: '12px',
-                      background: 'rgba(245, 158, 11, 0.15)',
+                      background: 'rgba(255, 255, 255, 0.05)',
                       border: '1px solid rgba(245, 158, 11, 0.4)',
                       color: '#f59e0b',
                       fontSize: '0.82rem',
                       fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
                     }}
+                    className="hover:bg-amber-950/40 hover:scale-105"
                   >
-                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span>最愛</span>
-                  </div>
+                    <Star className="w-4 h-4 text-amber-400" />
+                    <span>最愛+</span>
+                  </button>
                 )
-              }
+              })()}
 
-              return (
+              {/* 2. 新增子功能 (僅PAGE頁面有 僅SYS_Admin或FUNCTION_Admin有權限) */}
+              {func.type === 'PAGE' && (user?.role === 'SYS_Admin' || user?.role === 'FUNCTION_Admin') && (
                 <button
                   type="button"
-                  onClick={() => handleToggleFavorite(func.id)}
+                  onClick={() => {
+                    setNewSubFuncParams({ name: '', description: '', type: 'PAGE' })
+                    setAddSubFuncError('')
+                    setIsAddSubFuncModalOpen(true)
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
                     padding: '5px 14px',
                     borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(245, 158, 11, 0.4)',
-                    color: '#f59e0b',
+                    background: 'rgba(110, 191, 139, 0.15)',
+                    border: '1px solid rgba(110, 191, 139, 0.4)',
+                    color: '#6ebf8b',
                     fontSize: '0.82rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
-                  className="hover:bg-amber-950/40 hover:scale-105"
+                  className="hover:bg-emerald-950/40 hover:scale-105"
                 >
-                  <Star className="w-4 h-4 text-amber-400" />
-                  <span>最愛+</span>
+                  <Plus className="w-4 h-4 text-emerald-400" />
+                  <span>新增子功能</span>
                 </button>
-              )
-            })()}
+              )}
+            </div>
           </div>
         )}
 
@@ -2046,6 +2128,163 @@ function App() {
 
             {/* Post Board Component */}
             <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} />
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog: Add Sub-Function (新增子功能) */}
+      {isAddSubFuncModalOpen && currentFunction && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div
+            style={{
+              width: '90%',
+              maxWidth: '440px',
+              background: 'rgba(17, 27, 22, 0.95)',
+              border: '1px solid rgba(110, 191, 139, 0.4)',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+              color: '#f0f5f2',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#6ebf8b' }}>
+                <Plus className="w-5 h-5 text-emerald-400" />
+                新增子功能 (在 「{currentFunction.description || currentFunction.name}」 下)
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddSubFuncModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addSubFuncError && (
+              <div style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.82rem', marginBottom: '14px' }}>
+                {addSubFuncError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能英文名稱 (Name)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: Park, Library, Shop"
+                  value={newSubFuncParams.name}
+                  onChange={(e) => setNewSubFuncParams((prev) => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  中文描述名稱 (Description)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: 生態公園, 市立圖書館"
+                  value={newSubFuncParams.description}
+                  onChange={(e) => setNewSubFuncParams((prev) => ({ ...prev, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能類型 (Type)
+                </label>
+                <select
+                  value={newSubFuncParams.type}
+                  onChange={(e) => setNewSubFuncParams((prev) => ({ ...prev, type: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(17, 27, 22, 0.95)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="PAGE">PAGE (一般功能頁面)</option>
+                  <option value="POST">POST (動態貼文牆)</option>
+                  <option value="SETT">SETT (系統設定頁面)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+              <button
+                type="button"
+                onClick={() => setIsAddSubFuncModalOpen(false)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={isSubFuncSubmitting}
+                onClick={() => handleCreateSubFunction(currentFunction.id)}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #6ebf8b 0%, #34784e 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: isSubFuncSubmitting ? 'not-allowed' : 'pointer',
+                  opacity: isSubFuncSubmitting ? 0.7 : 1,
+                  boxShadow: '0 4px 14px rgba(110, 191, 139, 0.35)',
+                }}
+              >
+                {isSubFuncSubmitting ? '處理中...' : '確認新增'}
+              </button>
+            </div>
           </div>
         </div>
       )}
