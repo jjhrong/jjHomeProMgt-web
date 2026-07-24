@@ -538,7 +538,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           dir,
           name: nm.name,
           title: nm.title || nm.name,
-          hasPermission: true,
+          hasPermission: nm.hasPermission !== undefined ? nm.hasPermission : true,
         }
       })
     }
@@ -819,6 +819,15 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     e.stopPropagation()
     if (isMoved) return
     if (targetName) {
+      const targetMap = (homeFunction.neighborMaps || []).find((nm: any) => nm.name === targetName)
+      if (targetMap && targetMap.hasPermission === false) {
+        setTransitionModal({
+          open: true,
+          loading: false,
+          error: `存取權限不足：您目前沒有存取【${targetMap.title || targetMap.name}】區域地圖的權限。`,
+        })
+        return
+      }
       setFogState('closing')
       setTimeout(() => {
         setFogState('covered')
