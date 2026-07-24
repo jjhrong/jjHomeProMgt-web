@@ -1283,17 +1283,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             let tbarIsoY = 0
 
             if (adj.dir === 'N') {
-              // North border (Top-right edge ↗) - shift outwards by 6 tiles and up-right along edge
-              const dist = 6
-              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + 1 + offset)))
-              tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
-              tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2)
+              // North border (Top-right edge ↗) - shift outwards by 2 tiles
+              const dist = 2
+              const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
+              tbarIsoX = (gx + dist) * (TILE_WIDTH / 2) + 45
+              tbarIsoY = (gx - dist) * (TILE_HEIGHT / 2) - 10
             } else if (adj.dir === 'E') {
               // East border (Bottom-right edge ↘) - shift outwards by 6 tiles
               const dist = 6
-              const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
-              tbarIsoX = (gx - (height - 1) - dist) * (TILE_WIDTH / 2)
-              tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30
+              const gy = Math.min(height - 1, Math.max(0, Math.round(midY + 1 + offset)))
+              tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
+              tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2) + 30
             } else if (adj.dir === 'S') {
               // South border (Bottom-left edge ↙) - shift outwards by 6 tiles
               const dist = 6
@@ -1342,7 +1342,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     gap: '12px',
                     color: '#ffffff',
                     whiteSpace: 'nowrap',
-                    transform: adj.dir === 'N' ? 'skewY(30deg)' : 'skewY(-30deg)',
+                    transform: adj.dir === 'N' || adj.dir === 'E' ? 'skewY(30deg)' : 'skewY(-30deg)',
                     transformOrigin: 'bottom center',
                   }}
                 >
@@ -1370,7 +1370,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
                 {/* Dual Pillar Legs (z-index: 1 置於告示板下方，露出部分一模一樣長 50px 且皆接在斜向下緣) */}
                 {(() => {
-                  const isPositiveSkew = adj.dir === 'N'
+                  const isPositiveSkew = adj.dir === 'N' || adj.dir === 'E'
                   const poleHeight = '65px'
                   const leftMarginTop = isPositiveSkew ? '-55px' : '25px'
                   const rightMarginTop = isPositiveSkew ? '25px' : '-55px'
