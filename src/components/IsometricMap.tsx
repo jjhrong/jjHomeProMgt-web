@@ -373,12 +373,18 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         }
       })
     }
-    // Guaranteed fallback demo T-Bar signpost (東區生態公園) if no neighbor maps exist in DB
+    // Guaranteed fallback demo T-Bar signposts (東區生態公園 & 東北區高山森林) if no neighbor maps exist in DB
     return [
       {
         dir: 'E',
         name: 'Park',
         title: '東區生態公園',
+        hasPermission: true,
+      },
+      {
+        dir: 'N',
+        name: 'Mountain',
+        title: '東北區高山森林',
         hasPermission: true,
       },
     ]
@@ -1350,12 +1356,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                   </div>
                 </div>
 
-                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，雙腳架等長 65px 並各自接在斜向下緣) */}
+                {/* Dual Pillar Legs (z-index: 1 置於告示板下方，露出部分一模一樣長 50px 且皆接在斜向下緣) */}
                 {(() => {
                   const isPositiveSkew = adj.dir === 'E' || adj.dir === 'N'
                   const poleHeight = '65px'
-                  const leftMarginTop = isPositiveSkew ? '-20px' : '20px'
-                  const rightMarginTop = isPositiveSkew ? '20px' : '-20px'
+                  const leftMarginTop = isPositiveSkew ? '-55px' : '25px'
+                  const rightMarginTop = isPositiveSkew ? '25px' : '-55px'
 
                   return (
                     <div
