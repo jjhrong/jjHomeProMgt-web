@@ -294,7 +294,14 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
   // Handle Pin Post (Manager action)
   const handlePinPost = async (postId: string, currentStatus: number) => {
     if (!token) return
-    const isPinned = (currentStatus & 1) === 1
+    const isPinned = (currentStatus & 4) === 4
+    const newStatus = !isPinned ? currentStatus | 4 : currentStatus & ~4
+
+    // Optimistic UI update
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
+    )
+
     try {
       await axios.put(
         `${apiBaseUrl}/api/v1/posts/${postId}/pin`,
@@ -303,6 +310,10 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
       )
       fetchPosts()
     } catch (err: any) {
+      // Revert Optimistic UI on failure
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, status: currentStatus } : p))
+      )
       alert(err.response?.data?.error || '操作失敗：您可能沒有管理權限。')
     }
   }
@@ -592,9 +603,13 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
                     <button
                       onClick={() => handlePinPost(post.id, post.status)}
                       title={isPinned ? '取消置頂' : '置頂貼文'}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-950/40 transition-colors cursor-pointer"
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        isPinned
+                          ? 'text-amber-400 bg-amber-950/60 border border-amber-500/40'
+                          : 'text-slate-400 hover:text-amber-300 hover:bg-amber-950/40'
+                      }`}
                     >
-                      <Pin className="w-4 h-4" />
+                      <Pin className={`w-4 h-4 ${isPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
                     </button>
                     <button
                       onClick={() => handleDeletePost(post.id)}
