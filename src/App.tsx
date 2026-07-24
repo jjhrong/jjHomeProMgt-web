@@ -972,6 +972,7 @@ function App() {
   })
   const [addSubFuncError, setAddSubFuncError] = useState('')
   const [isSubFuncSubmitting, setIsSubFuncSubmitting] = useState(false)
+  const [triggerCreatePostToken, setTriggerCreatePostToken] = useState<number>(0)
 
   const handleCreateSubFunction = async (parentFuncId: string) => {
     if (!newSubFuncParams.name.trim()) {
@@ -1352,6 +1353,33 @@ function App() {
           >
             <Star className="w-4 h-4 text-amber-400" />
             <span>最愛+</span>
+          </button>
+        )}
+
+        {/* 2. 發表貼文 (僅 POST 功能頁面有 放在最愛按鈕旁邊) */}
+        {func.type === 'POST' && (
+          <button
+            type="button"
+            onClick={() => setTriggerCreatePostToken((prev) => prev + 1)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:scale-105"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span>發表貼文</span>
           </button>
         )}
 
@@ -2141,16 +2169,13 @@ function App() {
                 </span>
                 {currentFunction.description || currentFunction.name}
               </h2>
-              <p style={{ fontSize: '0.85rem', color: '#a1b5aa', marginTop: '4px', marginBottom: '8px' }}>
-                功能名稱: {currentFunction.name}
-              </p>
 
-              {/* Page Action Toolbar (最愛按鈕) */}
+              {/* Page Action Toolbar (最愛按鈕, 發表貼文按鈕) */}
               {renderActionToolbar(currentFunction)}
             </div>
 
             {/* Post Board Component */}
-            <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} />
+            <PostBoard func={currentFunction} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} triggerCreatePostToken={triggerCreatePostToken} />
           </div>
         </div>
       )}

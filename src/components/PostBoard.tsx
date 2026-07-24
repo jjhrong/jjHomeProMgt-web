@@ -11,7 +11,6 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   X,
-  Sparkles,
   AlertCircle,
   User,
 } from 'lucide-react'
@@ -27,6 +26,7 @@ interface PostBoardProps {
   apiBaseUrl: string
   user: any
   onSelectUser?: (user: any) => void
+  triggerCreatePostToken?: number
 }
 
 interface PostItem {
@@ -63,7 +63,7 @@ interface CommentItem {
   avatar_url?: string
 }
 
-export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user: _user, onSelectUser }) => {
+export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, user: _user, onSelectUser, triggerCreatePostToken }) => {
   const [posts, setPosts] = useState<PostItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -76,6 +76,14 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
   const [newLinkUrl, setNewLinkUrl] = useState<string>('')
   const [isSubmittingPost, setIsSubmittingPost] = useState<boolean>(false)
   const [postError, setPostError] = useState<string | null>(null)
+
+  // Trigger Create Post modal when external token changes
+  useEffect(() => {
+    if (triggerCreatePostToken && triggerCreatePostToken > 0) {
+      setPostError(null)
+      setShowCreateModal(true)
+    }
+  }, [triggerCreatePostToken])
 
   // Comments State keyed by postId
   const [expandedComments, setExpandedComments] = useState<{ [postId: string]: boolean }>({})
@@ -326,37 +334,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
 
   return (
     <div style={{ maxWidth: '840px', margin: '0 auto', padding: '12px 0' }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '24px',
-          borderRadius: '20px',
-          background: 'linear-gradient(135deg, #152820 0%, #0d1a14 100%)',
-          border: '1px solid rgba(163, 198, 175, 0.2)',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
-          marginBottom: '24px',
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f0f5f2', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <Sparkles className="w-5 h-5 text-emerald-400" />
-            {func.description || func.name} 討論公告牆
-          </h2>
-          <p style={{ fontSize: '0.875rem', color: '#91a89c', marginTop: '6px', margin: 0 }}>
-            發表想法、發起討論或瀏覽社群成員的分享內容。
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-950/40 transition-all cursor-pointer border border-emerald-400/30 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          發表貼文
-        </button>
-      </div>
+
 
       {/* Loading Skeleton */}
       {loading && (
