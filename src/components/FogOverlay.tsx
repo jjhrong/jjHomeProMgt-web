@@ -33,7 +33,7 @@ export const FogOverlay: React.FC<FogOverlayProps> = ({
         width: '100%',
         height: '100%',
         zIndex: 150,
-        pointerEvents: isHidden ? 'none' : 'auto',
+        pointerEvents: fogState === 'covered' ? 'auto' : 'none',
         overflow: 'hidden',
         borderRadius: '24px',
         visibility: isHidden ? 'hidden' : 'visible',
@@ -42,43 +42,59 @@ export const FogOverlay: React.FC<FogOverlayProps> = ({
     >
       {/* Left Cloud Block with Soft Transparent Mask Edge */}
       <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '65%',
-          height: '100%',
-          backgroundImage: `url(${cloudMaskUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'right center',
-          backgroundRepeat: 'no-repeat',
-          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-          maskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-          transform: leftTransform,
-          transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-          filter: 'drop-shadow(10px 0 20px rgba(0, 0, 0, 0.6))',
-        }}
+        style={
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '65%',
+            height: '100%',
+            background: 'linear-gradient(135deg, rgba(16, 30, 24, 0.98) 0%, rgba(8, 14, 11, 0.99) 100%)',
+            WebkitMaskImage: `url(${cloudMaskUrl}), linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)`,
+            maskImage: `url(${cloudMaskUrl}), linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)`,
+            WebkitMaskMode: 'alpha',
+            maskMode: 'alpha',
+            WebkitMaskSize: 'cover',
+            maskSize: 'cover',
+            WebkitMaskPosition: 'right center',
+            maskPosition: 'right center',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            pointerEvents: 'none',
+            transform: leftTransform,
+            transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+            filter: 'drop-shadow(10px 0 20px rgba(0, 0, 0, 0.6))',
+          } as React.CSSProperties
+        }
       />
 
       {/* Right Cloud Block (Flipped horizontally with Soft Transparent Mask Edge) */}
       <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '65%',
-          height: '100%',
-          backgroundImage: `url(${cloudMaskUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'right center',
-          backgroundRepeat: 'no-repeat',
-          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-          maskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)',
-          transform: rightTransform,
-          transformOrigin: 'center center',
-          transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-          filter: 'drop-shadow(-10px 0 20px rgba(0, 0, 0, 0.6))',
-        }}
+        style={
+          {
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '65%',
+            height: '100%',
+            background: 'linear-gradient(135deg, rgba(16, 30, 24, 0.98) 0%, rgba(8, 14, 11, 0.99) 100%)',
+            WebkitMaskImage: `url(${cloudMaskUrl}), linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)`,
+            maskImage: `url(${cloudMaskUrl}), linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)`,
+            WebkitMaskMode: 'alpha',
+            maskMode: 'alpha',
+            WebkitMaskSize: 'cover',
+            maskSize: 'cover',
+            WebkitMaskPosition: 'right center',
+            maskPosition: 'right center',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            pointerEvents: 'none',
+            transform: rightTransform,
+            transformOrigin: 'center center',
+            transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+            filter: 'drop-shadow(-10px 0 20px rgba(0, 0, 0, 0.6))',
+          } as React.CSSProperties
+        }
       />
 
       {/* Center Atmospheric Fog Filling & Loading Indicator during Full Coverage */}
