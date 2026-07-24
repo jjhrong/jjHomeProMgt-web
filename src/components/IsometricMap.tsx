@@ -1331,7 +1331,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     background: 'linear-gradient(135deg, #065f46 0%, #047857 60%, #022c22 100%)',
                     border: '2px solid #34d399',
                     filter:
-                      'drop-shadow(1px 1px 0px #0e382b) drop-shadow(2px 2px 0px #0e382b) drop-shadow(3px 3px 0px #0e382b) drop-shadow(4px 4px 0px #0e382b)',
+                      adj.dir === 'N' || adj.dir === 'S'
+                        ? 'drop-shadow(-1px -1px 0px #0e382b) drop-shadow(-2px -2px 0px #0e382b) drop-shadow(-3px -3px 0px #0e382b) drop-shadow(-4px -4px 0px #0e382b)'
+                        : 'drop-shadow(1px -1px 0px #0e382b) drop-shadow(2px -2px 0px #0e382b) drop-shadow(3px -3px 0px #0e382b) drop-shadow(4px -4px 0px #0e382b)',
                     borderRadius: '16px',
                     padding: '14px 24px',
                     display: 'flex',
