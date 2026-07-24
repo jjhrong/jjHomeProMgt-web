@@ -1280,11 +1280,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             let tbarIsoY = 0
 
             if (adj.dir === 'N') {
-              // North border (Top-right edge ↗) - shift outwards by 2 tiles
+              // North border (Top-right edge ↗) - shift outwards by 2 tiles and down by 1 tile
               const dist = 2
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
               tbarIsoX = (gx + dist) * (TILE_WIDTH / 2) + 45
-              tbarIsoY = (gx - dist) * (TILE_HEIGHT / 2) - 10
+              tbarIsoY = (gx - dist) * (TILE_HEIGHT / 2) - 10 + TILE_HEIGHT
             } else if (adj.dir === 'E') {
               // East border (Bottom-right edge ↘) - shift outwards by 6 tiles
               const dist = 6
@@ -1292,11 +1292,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               tbarIsoX = (width - 1 - gy + dist) * (TILE_WIDTH / 2) + 45
               tbarIsoY = (width - 1 + gy + dist) * (TILE_HEIGHT / 2) + 30
             } else if (adj.dir === 'S') {
-              // South border (Bottom-left edge ↙) - shift outwards by 6 tiles
+              // South border (Bottom-left edge ↙) - shift outwards by 6 tiles and down by 1 tile
               const dist = 6
               const gx = Math.min(width - 1, Math.max(0, Math.round(midX + offset)))
               tbarIsoX = (gx - (height - 1) - dist) * (TILE_WIDTH / 2)
-              tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30
+              tbarIsoY = (gx + (height - 1) + dist) * (TILE_HEIGHT / 2) + 30 + TILE_HEIGHT
             } else if (adj.dir === 'W') {
               // West border (Top-left edge ↖) - shift outwards by 2 tiles
               const dist = 2
