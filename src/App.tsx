@@ -963,6 +963,9 @@ function App() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [hasSettingPermission, setHasSettingPermission] = useState<boolean>(false)
 
+  // Route & Function Loading Mask state
+  const [isRouteLoading, setIsRouteLoading] = useState(false)
+
   // Add Sub-Function Modal state variables
   const [isAddSubFuncModalOpen, setIsAddSubFuncModalOpen] = useState(false)
   const [newSubFuncParams, setNewSubFuncParams] = useState({
@@ -1145,33 +1148,34 @@ function App() {
       return
     }
 
-    let functionName = path.slice(1)
-    if (functionName === '') {
-      setIs404(false)
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
-          headers: {
-            Authorization: `Bearer ${tokenVal}`
-          }
-        })
-        const funcData = response.data
-        setCurrentFunction(normalizeStatus(funcData))
-        setBackendError(null)
-      } catch (err) {
-        setCurrentFunction(homeFunction)
-      }
-      return
-    }
-
-    // If nested path, it's an invalid function name
-    if (functionName.includes('/')) {
-      setIs404(true)
-      setCurrentFunction(null)
-      return
-    }
-
-    setIs404(false)
+    setIsRouteLoading(true)
     try {
+      let functionName = path.slice(1)
+      if (functionName === '') {
+        setIs404(false)
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=Home`, {
+            headers: {
+              Authorization: `Bearer ${tokenVal}`
+            }
+          })
+          const funcData = response.data
+          setCurrentFunction(normalizeStatus(funcData))
+          setBackendError(null)
+        } catch (err) {
+          setCurrentFunction(homeFunction)
+        }
+        return
+      }
+
+      // If nested path, it's an invalid function name
+      if (functionName.includes('/')) {
+        setIs404(true)
+        setCurrentFunction(null)
+        return
+      }
+
+      setIs404(false)
       const response = await axios.get(`${API_BASE_URL}/api/v1/functions?name=${functionName}`, {
         headers: {
           Authorization: `Bearer ${tokenVal}`
@@ -1187,6 +1191,8 @@ function App() {
       if (!err.response) {
         setBackendError('網路連線失敗，無法連接到後端伺服器。')
       }
+    } finally {
+      setIsRouteLoading(false)
     }
   }
 
@@ -1313,29 +1319,35 @@ function App() {
 
             {/* Page Action Toolbar (從左邊開始排序) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {/* 1. 我的最愛 (所有人有權限 依最愛與否看是按鈕還是label) */}
+              {/* 1. 我的最愛 (所有人有權限 依最愛與否皆為可點擊互動式按鈕) */}
               {(() => {
                 const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
 
                 if (isFav) {
                   return (
-                    <div
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFavorite(func.id)}
+                      title="點擊取消最愛"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
-                        padding: '5px 12px',
+                        padding: '5px 14px',
                         borderRadius: '12px',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        background: 'rgba(245, 158, 11, 0.22)',
+                        border: '1px solid rgba(245, 158, 11, 0.55)',
                         color: '#f59e0b',
                         fontSize: '0.82rem',
                         fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
+                      className="hover:bg-amber-900/50 hover:scale-105 hover:border-amber-400"
                     >
                       <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>最愛</span>
-                    </div>
+                      <span>已最愛</span>
+                    </button>
                   )
                 }
 
@@ -1343,6 +1355,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => handleToggleFavorite(func.id)}
+                    title="點擊加入最愛"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2285,6 +2298,33 @@ function App() {
                 {isSubFuncSubmitting ? '處理中...' : '確認新增'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Global Route Navigation & Permission Verification Loading Mask */}
+      {isRouteLoading && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(6, 12, 9, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            color: '#f0f5f2',
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+        >
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#6ebf8b' }}>
+            載入中，請稍候...
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#a1b5aa' }}>
+            正在讀取功能頁面與驗證系統存取權限
           </div>
         </div>
       )}

@@ -792,11 +792,13 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     e.stopPropagation()
     if (isMoved) return
     handleTileClick(tile)
+    setTransitionModal({ open: true, loading: true })
     try {
       const response = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${building.name}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (response.data) {
+        setTransitionModal({ open: false, loading: false })
         onNavigate(`/${building.name}`)
       }
     } catch (err: any) {
