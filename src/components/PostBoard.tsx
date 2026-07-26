@@ -138,7 +138,7 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
 
     try {
       const targetId = func.id || func.name
-      await axios.post(
+      const res = await axios.post(
         `${apiBaseUrl}/api/v1/posts/${targetId}`,
         {
           title: newTitle.trim(),
@@ -151,6 +151,10 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
           headers: { Authorization: `Bearer ${token}` },
         }
       )
+
+      if (res.data?.dailyReward && (res.data.dailyReward.expGranted > 0 || res.data.dailyReward.coinGranted > 0)) {
+        alert(`🎉 ${res.data.dailyReward.message}`)
+      }
 
       setShowCreateModal(false)
       setNewTitle('')
@@ -186,13 +190,16 @@ export const PostBoard: React.FC<PostBoardProps> = ({ func, token, apiBaseUrl, u
     )
 
     try {
-      await axios.post(
+      const res = await axios.post(
         `${apiBaseUrl}/api/v1/posts/${postId}/like`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       )
+      if (res.data?.dailyReward && (res.data.dailyReward.expGranted > 0 || res.data.dailyReward.coinGranted > 0)) {
+        alert(`🎉 ${res.data.dailyReward.message}`)
+      }
     } catch (err) {
       console.error('Failed to toggle like:', err)
       // Revert if error

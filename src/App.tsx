@@ -1293,15 +1293,20 @@ function App() {
 
     const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
     const uAny = user as any
+    const hasBuildingAdminOpt = (func?.adminOptions || []).some(
+      (opt: any) => opt.key === 'CREATE_BUILDING' && opt.allowed
+    )
     const isUserAdmin =
       uAny?.role === 'SYS_Admin' ||
       uAny?.role === 'FUNCTION_Admin' ||
       uAny?.Role === 'SYS_Admin' ||
       uAny?.Role === 'FUNCTION_Admin' ||
       String(uAny?.role || '').toLowerCase().includes('admin') ||
-      String(uAny?.Role || '').toLowerCase().includes('admin')
+      String(uAny?.Role || '').toLowerCase().includes('admin') ||
+      hasBuildingAdminOpt ||
+      hasSettingPermission
 
-    const canAddSubFunc = func.type === 'PAGE' && isUserAdmin
+    const canAddSubFunc = (func.type === 'PAGE' || func.type === 'POST') && isUserAdmin
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
