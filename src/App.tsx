@@ -974,6 +974,70 @@ function App() {
   const [isSubFuncSubmitting, setIsSubFuncSubmitting] = useState(false)
   const [triggerCreatePostToken, setTriggerCreatePostToken] = useState<number>(0)
 
+  // Modal state & handlers: Function Settings (功能設定)
+  const [isFuncSettingsModalOpen, setIsFuncSettingsModalOpen] = useState(false)
+  const [editingFunc, setEditingFunc] = useState<any>(null)
+  const [funcSettingsParams, setFuncSettingsParams] = useState({ description: '', name: '' })
+  const [funcSettingsError, setFuncSettingsError] = useState('')
+  const [isFuncSettingsSubmitting, setIsFuncSettingsSubmitting] = useState(false)
+
+  const handleOpenFuncSettings = (targetFunc: any) => {
+    setEditingFunc(targetFunc)
+    setFuncSettingsParams({
+      description: targetFunc.description || '',
+      name: targetFunc.name || '',
+    })
+    setFuncSettingsError('')
+    setIsFuncSettingsModalOpen(true)
+  }
+
+  const handleSaveFuncSettings = async () => {
+    if (!editingFunc) return
+    if (!funcSettingsParams.description.trim()) {
+      setFuncSettingsError('請輸入功能顯示名稱 (Description)')
+      return
+    }
+    setIsFuncSettingsSubmitting(true)
+    setFuncSettingsError('')
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/v1/functions`,
+        {
+          id: editingFunc.id,
+          pId: editingFunc.pId || editingFunc.p_id || null,
+          name: funcSettingsParams.name.trim() || editingFunc.name,
+          description: funcSettingsParams.description.trim(),
+          type: editingFunc.type || 'PAGE',
+          orderSn: typeof editingFunc.orderSn === 'number' ? editingFunc.orderSn : (editingFunc.order_sn || 0),
+          status: editingFunc.status || { disabled: false },
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      setIsFuncSettingsSubmitting(false)
+      setIsFuncSettingsModalOpen(false)
+      if (currentFunction && currentFunction.id === editingFunc.id) {
+        setCurrentFunction((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                description: funcSettingsParams.description.trim(),
+                name: funcSettingsParams.name.trim() || prev.name,
+              }
+            : null
+        )
+      }
+      validateRoute(token, user)
+      fetchHomeFunction(token)
+    } catch (err: any) {
+      console.error('Failed to update function settings:', err)
+      setIsFuncSettingsSubmitting(false)
+      const msg = err.response?.data?.error || '更新功能設定失敗，請檢查輸入內容與權限。'
+      setFuncSettingsError(msg)
+    }
+  }
+
   const handleCreateSubFunction = async (parentFuncId: string) => {
     if (!newSubFuncParams.name.trim()) {
       setAddSubFuncError('請輸入功能英文名稱 (Name)')
@@ -1309,38 +1373,29 @@ function App() {
       9: 0, 8: -128, 7: -257, 6: -380, 5: -508, 4: -637, 3: -797, 2: -940, 1: -1068, 0: -1224
     }
     const yOffset = ROW_Y_OFFSETS[row] ?? -1224
+    const nextRowY = ROW_Y_OFFSETS[row + 1] ?? 0
+    const spriteHeight = Math.abs(nextRowY - yOffset) || 156
+
+    const scale = 0.35
+    const width = Math.round(100 * scale)
+    const height = Math.round(spriteHeight * scale)
 
     return (
       <div
         style={{
-          width: '38px',
-          height: '38px',
-          borderRadius: '10px',
-          background: 'rgba(110, 191, 139, 0.12)',
-          border: '1px solid rgba(110, 191, 139, 0.35)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          position: 'relative',
+          width: `${width}px`,
+          height: `${height}px`,
+          backgroundImage: `url(${spriteImageUrl})`,
+          backgroundSize: `${1000 * scale}px auto`,
+          backgroundPosition: `-${(20 + spriteCol * 96) * scale}px ${yOffset * scale}px`,
+          backgroundRepeat: 'no-repeat',
+          display: 'inline-block',
           flexShrink: 0,
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          verticalAlign: 'middle',
+          filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))',
         }}
         title="建築物外觀貼圖"
-      >
-        <div
-          style={{
-            width: '100px',
-            height: '130px',
-            backgroundImage: `url(${spriteImageUrl})`,
-            backgroundSize: '1000px auto',
-            backgroundPosition: `-${20 + spriteCol * 96}px ${yOffset}px`,
-            backgroundRepeat: 'no-repeat',
-            transform: 'scale(0.35)',
-            transformOrigin: 'center center',
-          }}
-        />
-      </div>
+      />
     )
   }
 
@@ -1475,6 +1530,32 @@ function App() {
             <span>新增子功能</span>
           </button>
         )}
+
+        {/* 3. 功能設定 (在「新增子功能」按鈕後面) */}
+        {isUserAdmin && (
+          <button
+            type="button"
+            onClick={() => handleOpenFuncSettings(func)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              color: '#60a5fa',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-blue-950/40 hover:scale-105"
+          >
+            <Settings className="w-4 h-4 text-blue-400" />
+            <span>功能設定</span>
+          </button>
+        )}
       </div>
     )
   }
@@ -1496,6 +1577,11 @@ function App() {
             <h3 style={{ fontSize: '1.4rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
               {renderBuildingSpriteHeaderIcon(func.spriteCol, func.spriteRow, func.sheet_id)}
               {func.description}
+              {func.type === 'POST' && (
+                <span style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(110, 191, 139, 0.15)', color: '#6ebf8b', fontSize: '0.8rem', border: '1px solid rgba(110, 191, 139, 0.3)', fontWeight: 600 }}>
+                  文章看板
+                </span>
+              )}
             </h3>
 
             {/* Page Action Toolbar (從左邊開始排序) */}
@@ -2221,11 +2307,13 @@ function App() {
             {/* Function Title Header */}
             <div style={{ marginBottom: '20px', borderBottom: '1px solid rgba(163, 198, 175, 0.15)', paddingBottom: '16px' }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f0f5f2', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(110, 191, 139, 0.15)', color: '#6ebf8b', fontSize: '0.8rem', border: '1px solid rgba(110, 191, 139, 0.3)' }}>
-                  POST
-                </span>
                 {renderBuildingSpriteHeaderIcon(currentFunction.spriteCol, currentFunction.spriteRow, currentFunction.sheet_id)}
                 {currentFunction.description || currentFunction.name}
+                {currentFunction.type === 'POST' && (
+                  <span style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(110, 191, 139, 0.15)', color: '#6ebf8b', fontSize: '0.8rem', border: '1px solid rgba(110, 191, 139, 0.3)', fontWeight: 600 }}>
+                    文章看板
+                  </span>
+                )}
               </h2>
 
               {/* Page Action Toolbar (最愛按鈕, 發表貼文按鈕) */}
@@ -2390,6 +2478,139 @@ function App() {
               >
                 {isSubFuncSubmitting ? '處理中...' : '確認新增'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog: Function Settings (功能設定) */}
+      {isFuncSettingsModalOpen && editingFunc && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div
+            style={{
+              width: '90%',
+              maxWidth: '440px',
+              background: 'rgba(17, 27, 22, 0.95)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+              color: '#f0f5f2',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa' }}>
+                <Settings className="w-5 h-5 text-blue-400" />
+                功能設定 (維護功能名稱)
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFuncSettingsModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {funcSettingsError && (
+              <div style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.82rem', marginBottom: '14px' }}>
+                {funcSettingsError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能顯示名稱 (Description)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: 親子教育-心芽萬花童"
+                  value={funcSettingsParams.description}
+                  onChange={(e) => setFuncSettingsParams((prev) => ({ ...prev, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                  功能識別名稱 (Name)
+                </label>
+                <input
+                  type="text"
+                  placeholder="例如: ParentChildEdu"
+                  value={funcSettingsParams.name}
+                  onChange={(e) => setFuncSettingsParams((prev) => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(163, 198, 175, 0.3)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsFuncSettingsModalOpen(false)}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#cbd5e1',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  disabled={isFuncSettingsSubmitting}
+                  onClick={handleSaveFuncSettings}
+                  style={{
+                    padding: '9px 20px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: isFuncSettingsSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isFuncSettingsSubmitting ? 0.7 : 1,
+                    boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  }}
+                >
+                  {isFuncSettingsSubmitting ? '儲存中...' : '儲存變更'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
