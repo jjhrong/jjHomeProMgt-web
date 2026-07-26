@@ -1287,6 +1287,63 @@ function App() {
     }
   }
 
+  // Helper: 渲染標題前之建築物外觀貼圖圖示 (若有設定 spriteCol)
+  const renderBuildingSpriteHeaderIcon = (spriteCol?: number, spriteRow?: number, sheetId?: string | number) => {
+    if (typeof spriteCol !== 'number') {
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      )
+    }
+
+    const row = typeof spriteRow === 'number' ? spriteRow : 0
+    const cleanSheetId = String(sheetId || '1').replace(/^0+/, '') || '1'
+    const spriteImageUrl = `/buildings_${cleanSheetId}.webp`
+
+    const ROW_Y_OFFSETS: Record<number, number> = {
+      9: 0, 8: -128, 7: -257, 6: -380, 5: -508, 4: -637, 3: -797, 2: -940, 1: -1068, 0: -1224
+    }
+    const yOffset = ROW_Y_OFFSETS[row] ?? -1224
+
+    return (
+      <div
+        style={{
+          width: '38px',
+          height: '38px',
+          borderRadius: '10px',
+          background: 'rgba(110, 191, 139, 0.12)',
+          border: '1px solid rgba(110, 191, 139, 0.35)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          position: 'relative',
+          flexShrink: 0,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        }}
+        title="建築物外觀貼圖"
+      >
+        <div
+          style={{
+            width: '100px',
+            height: '130px',
+            backgroundImage: `url(${spriteImageUrl})`,
+            backgroundSize: '1000px auto',
+            backgroundPosition: `-${20 + spriteCol * 96}px ${yOffset}px`,
+            backgroundRepeat: 'no-repeat',
+            transform: 'scale(0.35)',
+            transformOrigin: 'center center',
+          }}
+        />
+      </div>
+    )
+  }
+
   // Reusable Page Action Toolbar Renderer (適用於 PAGE 與 POST 功能頁面與彈窗)
   const renderActionToolbar = (func: any) => {
     if (!func) return null
@@ -1306,7 +1363,8 @@ function App() {
       hasBuildingAdminOpt ||
       hasSettingPermission
 
-    const canAddSubFunc = (func.type === 'PAGE' || func.type === 'POST') && isUserAdmin
+    // 貼文類 (POST) 不可新增子功能，僅 PAGE 頁面允許
+    const canAddSubFunc = func.type === 'PAGE' && isUserAdmin
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
@@ -1435,14 +1493,8 @@ function App() {
         {/* First Block: Function description and Action Toolbar */}
         {showFirst && (
           <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h3 style={{ fontSize: '1.4rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
+            <h3 style={{ fontSize: '1.4rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+              {renderBuildingSpriteHeaderIcon(func.spriteCol, func.spriteRow, func.sheet_id)}
               {func.description}
             </h3>
 
@@ -2172,6 +2224,7 @@ function App() {
                 <span style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(110, 191, 139, 0.15)', color: '#6ebf8b', fontSize: '0.8rem', border: '1px solid rgba(110, 191, 139, 0.3)' }}>
                   POST
                 </span>
+                {renderBuildingSpriteHeaderIcon(currentFunction.spriteCol, currentFunction.spriteRow, currentFunction.sheet_id)}
                 {currentFunction.description || currentFunction.name}
               </h2>
 
