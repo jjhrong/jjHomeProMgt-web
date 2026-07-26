@@ -1033,8 +1033,18 @@ function App() {
     } catch (err: any) {
       console.error('Failed to update function settings:', err)
       setIsFuncSettingsSubmitting(false)
-      const msg = err.response?.data?.error || '更新功能設定失敗，請檢查輸入內容與權限。'
-      setFuncSettingsError(msg)
+      const serverMsg = String(err.response?.data?.error || '')
+      if (
+        serverMsg.includes('idx_functions_name') ||
+        serverMsg.includes('23505') ||
+        serverMsg.includes('duplicate key') ||
+        serverMsg.includes('重複')
+      ) {
+        setFuncSettingsError('設定的英文名稱重複，不可使用！')
+      } else {
+        const msg = serverMsg || '更新功能設定失敗，請檢查輸入內容與權限。'
+        setFuncSettingsError(msg)
+      }
     }
   }
 
@@ -1072,8 +1082,18 @@ function App() {
     } catch (err: any) {
       console.error('Failed to create sub-function:', err)
       setIsSubFuncSubmitting(false)
-      const msg = err.response?.data?.error || '新增子功能失敗，請檢查輸入參數或系統權限。'
-      setAddSubFuncError(msg)
+      const serverMsg = String(err.response?.data?.error || '')
+      if (
+        serverMsg.includes('idx_functions_name') ||
+        serverMsg.includes('23505') ||
+        serverMsg.includes('duplicate key') ||
+        serverMsg.includes('重複')
+      ) {
+        setAddSubFuncError('設定的英文名稱重複，不可使用！')
+      } else {
+        const msg = serverMsg || '新增子功能失敗，請檢查輸入參數或系統權限。'
+        setAddSubFuncError(msg)
+      }
     }
   }
 
