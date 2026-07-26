@@ -1434,6 +1434,10 @@ function App() {
     if (!func) return null
 
     const isFav = (homeFunction?.favorites || []).some((f: any) => f.id === func.id)
+    const isDirectBuilding =
+      (homeFunction?.subFunctions || []).some((b: any) => b.id === func.id) ||
+      (homeFunction?.id && func.pid === homeFunction.id)
+
     const uAny = user as any
     const hasBuildingAdminOpt = (func?.adminOptions || []).some(
       (opt: any) => opt.key === 'CREATE_BUILDING' && opt.allowed
@@ -1473,9 +1477,9 @@ function App() {
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
-            className="hover:bg-amber-900/50 hover:scale-105 hover:border-amber-400"
+            className="hover:border-amber-400 hover:bg-amber-900/50 hover:scale-105"
           >
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
             <span>已最愛</span>
           </button>
         ) : (
@@ -1531,7 +1535,7 @@ function App() {
           </button>
         )}
 
-        {/* 2. 新增子功能 (僅PAGE頁面有 僅SYS_Admin或FUNCTION_Admin有權限) */}
+        {/* 3. 新增子功能 (僅PAGE頁面有 僅SYS_Admin或FUNCTION_Admin有權限) */}
         {canAddSubFunc && (
           <button
             type="button"
@@ -1561,7 +1565,7 @@ function App() {
           </button>
         )}
 
-        {/* 3. 功能設定 (在「新增子功能」按鈕後面) */}
+        {/* 4. 功能設定 */}
         {isUserAdmin && (
           <button
             type="button"
@@ -1587,8 +1591,8 @@ function App() {
           </button>
         )}
 
-        {/* 4. 重設位置 (在「功能設定」按鈕後面) */}
-        {isUserAdmin && (
+        {/* 5. 重設位置 (僅大地圖上的直接建築物有權限且顯示，子功能不顯示) */}
+        {isUserAdmin && isDirectBuilding && (
           <button
             type="button"
             onClick={() => handleStartRelocateBuilding(func)}
