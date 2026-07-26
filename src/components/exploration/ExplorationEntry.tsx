@@ -22,7 +22,13 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
   const [activePairCode, setActivePairCode] = useState<string>('')
   const [activeProfileId, setActiveProfileId] = useState<string>('')
 
-  // Fetch children profiles from GET /api/v1/children-profiles
+  // Check if a profile is a blank unedited draft (no name or default placeholder "新小朋友")
+  const isBlankDraft = (p: ChildrenProfile) => {
+    const name = (p.childName || p.name || '').trim()
+    return !name || name === '新小朋友'
+  }
+
+  // Fetch children profiles from GET /api/v1/children-profiles & auto-clean blank drafts
   const fetchProfiles = async () => {
     if (!token) return
     setLoading(true)
@@ -31,14 +37,30 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
       const res = await axios.get(`${apiBaseUrl}/api/v1/children-profiles`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (Array.isArray(res.data)) {
-        setProfiles(res.data)
-      } else {
-        setProfiles([])
+
+      const rawProfiles: ChildrenProfile[] = Array.isArray(res.data) ? res.data : []
+
+      // 需求 3：進入功能時把自己下面沒有輸入小朋友姓名的資料直接刪除
+      const blankDrafts = rawProfiles.filter((p) => isBlankDraft(p))
+      const validProfiles = rawProfiles.filter((p) => !isBlankDraft(p))
+
+      // Auto-delete blank profiles in background
+      if (blankDrafts.length > 0) {
+        blankDrafts.forEach((draft) => {
+          axios
+            .delete(`${apiBaseUrl}/api/v1/children-profiles/${draft.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .catch((err) => {
+              console.warn('Auto-clean blank profile error:', err)
+            })
+        })
       }
+
+      setProfiles(validProfiles)
     } catch (err: any) {
       console.error('Failed to fetch children profiles:', err)
-      setError(err.response?.data?.error || '資料庫中尚未建立 children_profiles 表格，或伺服器正在更新中。')
+      setError(err.response?.data?.error || '無法取得小朋友探索檔案清單')
     } finally {
       setLoading(false)
     }
@@ -48,12 +70,24 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
     fetchProfiles()
   }, [token, apiBaseUrl])
 
-  // Click "+ 啟動新探索" -> POST /api/v1/children-profiles to create a blank draft
+  // Click "+ 啟動新探索" -> 若有尚未完成連動的草稿，繼續編輯該草稿；若無則 POST 建立新草稿
   const handleStartNewExploration = async () => {
     if (!token) return
     setCreating(true)
     setError(null)
     try {
+      // 檢查是否已有輸入姓名但尚未完成 LINE 綁定的草稿
+      const uncompletedDraft = profiles.find((p) => !p.lineUserId)
+
+      if (uncompletedDraft) {
+        // 直接當成草稿開啟繼續新增編輯
+        setSelectedProfile(uncompletedDraft)
+        setIsWizardOpen(true)
+        setCreating(false)
+        return
+      }
+
+      // 否則建立全新草稿
       const res = await axios.post(
         `${apiBaseUrl}/api/v1/children-profiles`,
         {},
@@ -105,13 +139,13 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
   return (
     <div className="w-full space-y-4 text-slate-100">
       {/* Page Description Only */}
-      <div className="flex items-center justify-between gap-3 text-xs text-slate-400 py-1">
-        <p>設定小朋友每日 AI 探索任務、生活紀錄與 LINE 機器人對話綁定</p>
+      <div className="flex items-center justify-between gap-3 text-sm text-slate-300 py-1">
+        <p className="font-medium">設定小朋友每日 AI 探索任務、生活紀錄與 LINE 機器人對話綁定</p>
         <button
           type="button"
           onClick={fetchProfiles}
           disabled={loading}
-          className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-700/80 shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors border border-slate-700 shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>重新整理</span>
@@ -142,7 +176,7 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
           type="button"
           onClick={handleStartNewExploration}
           disabled={creating}
-          className="group relative p-5 rounded-xl bg-gradient-to-br from-emerald-950/70 via-slate-900 to-teal-950/60 border border-emerald-500/40 hover:border-emerald-400 shadow-lg hover:shadow-emerald-950/50 transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px] text-left cursor-pointer overflow-hidden"
+          className="group relative p-5 rounded-xl bg-gradient-to-br from-emerald-950/70 via-slate-900 to-teal-950/60 border border-emerald-500/40 hover:border-emerald-400 shadow-lg hover:shadow-emerald-950/50 transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px] text-left cursor-pointer overflow-hidden"
         >
           {/* Ambient Glow */}
           <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-emerald-500/20 transition-all" />
@@ -165,13 +199,13 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
               + 啟動新探索
               <Sparkles className="w-3.5 h-3.5 text-amber-400 opacity-80" />
             </h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed line-clamp-2">
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
               建立新小朋友的專屬探索檔案、3步驟引導設定與 LINE 連動密碼
             </p>
           </div>
 
           <div className="flex items-center justify-between text-xs font-semibold text-emerald-400 pt-3 border-t border-emerald-500/20">
-            <span>{creating ? '建立草稿中...' : '點擊開始設定'}</span>
+            <span>{creating ? '處理中...' : '點擊開始設定'}</span>
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
@@ -188,24 +222,32 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
         {profiles.map((prof) => {
           const childName = prof.childName || prof.name || '未命名小朋友'
           const dateDisplay = formatDate(prof.createdAt)
+          const isBound = !!prof.lineUserId
 
           return (
             <div
               key={prof.id}
               onClick={() => handleOpenExistingProfile(prof)}
-              className="group relative p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px] cursor-pointer"
+              className="group relative p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px] cursor-pointer"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="p-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 group-hover:text-emerald-400 group-hover:border-emerald-500/40 transition-colors">
                     <User className="w-4 h-4" />
                   </div>
-                  {prof.pairCode && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                      <Key className="w-3 h-3" />
-                      {prof.pairCode}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!isBound && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                        未連動草稿
+                      </span>
+                    )}
+                    {prof.pairCode && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                        <Key className="w-3 h-3" />
+                        {prof.pairCode}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
@@ -218,7 +260,7 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
               </div>
 
               <div className="flex items-center justify-between text-xs font-medium text-slate-400 group-hover:text-emerald-400 pt-3 border-t border-slate-800/80 transition-colors">
-                <span>維護設定參數</span>
+                <span>{isBound ? '維護設定參數' : '繼續編輯草稿'}</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
