@@ -1622,7 +1622,19 @@ function App() {
 
     const isHomeType = func.type === 'HOME' || func.name === 'Home'
     const showFirst = !isHomeType && func.name && func.name.toLowerCase() !== 'home'
-    const hasSecondContent = isHomeType || (func.name === 'User' && !!user) || func.type === 'SETT' || func.type === 'POST'
+    const isExploration =
+      func.name === 'ExplorationAdmin' ||
+      func.name === 'Setting_Exploration' ||
+      func.name.toLowerCase().includes('exploration') ||
+      func.description?.includes('探索')
+
+    const hasSecondContent =
+      isHomeType ||
+      (func.name === 'User' && !!user) ||
+      func.type === 'SETT' ||
+      func.type === 'POST' ||
+      isExploration
+
     const showThird = !isHomeType && func.subFunctions && func.subFunctions.length > 0
 
     return (
