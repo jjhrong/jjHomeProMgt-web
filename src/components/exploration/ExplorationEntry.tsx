@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Plus, Sparkles, User, Calendar, Key, ChevronRight, Loader2, Compass, AlertCircle, RefreshCw } from 'lucide-react'
+import { Plus, Sparkles, User, Calendar, Key, ChevronRight, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import { ExplorationWizardModal, type ChildrenProfile } from './ExplorationWizardModal'
 import { LineBindModal } from './LineBindModal'
 
@@ -104,28 +104,14 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
 
   return (
     <div className="w-full space-y-4 text-slate-100">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-900/60 border border-slate-800 rounded-xl backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-400">
-            <Compass className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              心芽萬花童 - 親子探索管理
-              <Sparkles className="w-4 h-4 text-amber-400" />
-            </h2>
-            <p className="text-xs text-slate-400">
-              設定小朋友每日 AI 探索任務、生活紀錄與 LINE 機器人對話綁定
-            </p>
-          </div>
-        </div>
-
+      {/* Page Description Only */}
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-400 py-1">
+        <p>設定小朋友每日 AI 探索任務、生活紀錄與 LINE 機器人對話綁定</p>
         <button
           type="button"
           onClick={fetchProfiles}
           disabled={loading}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors border border-slate-700"
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-700/80 shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>重新整理</span>
@@ -150,7 +136,7 @@ export const ExplorationEntry: React.FC<ExplorationEntryProps> = ({ token, apiBa
       )}
 
       {/* Responsive Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         {/* CARD 1: [ + 啟動新探索 ] Special Accent Card */}
         <button
           type="button"
