@@ -6,9 +6,10 @@ import type { SearchUser } from './components/AutoCompleteSearch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from './components/NotificationBell'
 import { UserCardModal } from './components/user/UserCardModal'
-import { Settings, LogOut, User, AlertTriangle, Star, Plus, X } from 'lucide-react'
+import { Settings, LogOut, User, AlertTriangle, Star, Plus, X, MapPin } from 'lucide-react'
 import { IsometricMap } from './components/IsometricMap'
 import { PostBoard } from './components/PostBoard'
+import { ExplorationEntry } from './components/exploration/ExplorationEntry'
 
 const getApiBaseUrl = () => {
   const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
@@ -981,6 +982,15 @@ function App() {
   const [funcSettingsError, setFuncSettingsError] = useState('')
   const [isFuncSettingsSubmitting, setIsFuncSettingsSubmitting] = useState(false)
 
+  // Building Relocation state & handlers
+  const [relocateBuilding, setRelocateBuilding] = useState<any>(null)
+
+  const handleStartRelocateBuilding = (building: any) => {
+    setRelocateBuilding(building)
+    setCurrentFunction(null)
+    navigateTo('/')
+  }
+
   const handleOpenFuncSettings = (targetFunc: any) => {
     setEditingFunc(targetFunc)
     setFuncSettingsParams({
@@ -1576,6 +1586,32 @@ function App() {
             <span>功能設定</span>
           </button>
         )}
+
+        {/* 4. 重設位置 (在「功能設定」按鈕後面) */}
+        {isUserAdmin && (
+          <button
+            type="button"
+            onClick={() => handleStartRelocateBuilding(func)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              borderRadius: '12px',
+              background: 'rgba(234, 179, 8, 0.15)',
+              border: '1px solid rgba(234, 179, 8, 0.4)',
+              color: '#facc15',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            className="hover:bg-amber-950/40 hover:scale-105"
+          >
+            <MapPin className="w-4 h-4 text-amber-400" />
+            <span>重設位置</span>
+          </button>
+        )}
       </div>
     )
   }
@@ -1651,7 +1687,24 @@ function App() {
                   apiBaseUrl={API_BASE_URL}
                   onNavigate={navigateTo}
                   userRole={user?.role}
-                  onRefreshMap={() => fetchHomeFunction(token)}
+                  userId={user?.id}
+                  relocateBuilding={relocateBuilding}
+                  onCancelRelocate={() => setRelocateBuilding(null)}
+                  onRelocateComplete={(updatedBuilding) => {
+                    setRelocateBuilding(null)
+                    fetchHomeFunction(token)
+                    if (updatedBuilding) {
+                      navigateTo(`/${updatedBuilding.name}`)
+                      setCurrentFunction(updatedBuilding)
+                    }
+                    setTimeout(() => {
+                      alert('設定完成')
+                    }, 250)
+                  }}
+                  onRefreshMap={() => {
+                    setRelocateBuilding(null)
+                    fetchHomeFunction(token)
+                  }}
                 />
               </div>
             )}
@@ -1664,6 +1717,12 @@ function App() {
             )}
             {func.type === 'POST' && (
               <PostBoard func={func} token={token} apiBaseUrl={API_BASE_URL} user={user} onSelectUser={(u: any) => setSelectedSearchUser(u)} />
+            )}
+            {(func.name === 'ExplorationAdmin' ||
+              func.name === 'Setting_Exploration' ||
+              func.name.toLowerCase().includes('exploration') ||
+              func.description?.includes('探索')) && (
+              <ExplorationEntry token={token} apiBaseUrl={API_BASE_URL} />
             )}
           </div>
         )}

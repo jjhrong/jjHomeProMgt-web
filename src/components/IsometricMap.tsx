@@ -74,7 +74,11 @@ interface IsometricMapProps {
   apiBaseUrl: string
   onNavigate: (path: string) => void
   userRole?: string
+  userId?: string
+  relocateBuilding?: any
+  onCancelRelocate?: () => void
   onRefreshMap?: () => void
+  onRelocateComplete?: (updatedBuilding: any) => void
 }
 
 interface TileCoord {
@@ -88,40 +92,69 @@ interface TileCoord {
   isDirt?: boolean
 }
 
-// Converts orderSN into relative offset (dx, dy) from center (0,0) via square spiral
+// Converts orderSN into relative offset (dx, dy) from center (0,0) via even square spiral
 function orderSNToRelativeCoord(orderSN: number): { dx: number; dy: number } {
   if (orderSN <= 0) return { dx: 0, dy: 0 }
 
-  let layer = 1
-  while ((2 * layer + 1) * (2 * layer + 1) - 1 < orderSN) {
-    layer++
+  let k = 1
+  while ((2 * k) * (2 * k) <= orderSN) {
+    k++
   }
 
-  const prevMax = (2 * (layer - 1) + 1) * (2 * (layer - 1) + 1) - 1
-  const idxInLayer = orderSN - (prevMax + 1)
-  const sideLength = 2 * layer
+  const prevMaxCount = (2 * (k - 1)) * (2 * (k - 1))
+  const idxInRing = orderSN - prevMaxCount
+  const sideLength = 2 * k - 1
 
-  const side = Math.floor(idxInLayer / sideLength)
-  const offset = idxInLayer % sideLength
+  const side = Math.floor(idxInRing / sideLength)
+  const offset = idxInRing % sideLength
 
   let dx = 0
   let dy = 0
 
   if (side === 0) {
-    dx = layer
-    dy = -layer + 1 + offset
+    dx = k - 1
+    dy = -k + 1 + offset
   } else if (side === 1) {
-    dx = layer - 1 - offset
-    dy = layer
+    dx = k - 2 - offset
+    dy = k - 1
   } else if (side === 2) {
-    dx = -layer
-    dy = layer - 1 - offset
+    dx = -k
+    dy = k - 2 - offset
   } else {
-    dx = -layer + 1 + offset
-    dy = -layer
+    dx = -k + 1 + offset
+    dy = -k
   }
 
   return { dx, dy }
+}
+
+// Converts relative coordinate offset (dx, dy) from center (0,0) back to orderSN
+function relativeCoordToOrderSN(dx: number, dy: number): number {
+  const kX = dx >= 0 ? dx + 1 : -dx
+  const kY = dy >= 0 ? dy + 1 : -dy
+  const k = Math.max(1, kX, kY)
+
+  const prevMaxCount = (2 * (k - 1)) * (2 * (k - 1))
+  const sideLength = 2 * k - 1
+
+  let side = 0
+  let offset = 0
+
+  if (dx === k - 1 && dy > -k) {
+    side = 0
+    offset = dy + k - 1
+  } else if (dy === k - 1 && dx < k - 1) {
+    side = 1
+    offset = k - 2 - dx
+  } else if (dx === -k && dy < k - 1) {
+    side = 2
+    offset = k - 2 - dy
+  } else {
+    side = 3
+    offset = dx + k - 1
+  }
+
+  return prevMaxCount + side * sideLength + offset
 }
 
 // Module-level cache to remember map pan positions across component remounts and feature transitions
@@ -307,7 +340,11 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   apiBaseUrl,
   onNavigate,
   userRole,
+  userId: _userId,
+  relocateBuilding,
+  onCancelRelocate,
   onRefreshMap,
+  onRelocateComplete,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null)
 
@@ -351,9 +388,30 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   const [isBuildingSubmitting, setIsBuildingSubmitting] = useState(false)
 
 
-  // Dynamic Map Dimensions (clamped 10~30)
-  const width = Math.min(Math.max(homeFunction.width || 10, 10), 30)
-  const height = Math.min(Math.max(homeFunction.height || 10, 10), 30)
+  // Dynamic Map Dimensions (clamped even sizes: 10, 12, 14, 16, 18 ... 40)
+  const requiredDim = useMemo(() => {
+    let maxK = 5 // Default minimum ring k = 5 -> 10 x 10 grid (order_sn 0..99)
+    if (homeFunction.subFunctions) {
+      homeFunction.subFunctions.forEach((sub) => {
+        if (typeof sub.orderSn === 'number' && sub.orderSn >= 0) {
+          let k = 1
+          while ((2 * k) * (2 * k) <= sub.orderSn) {
+            k++
+          }
+          if (k > maxK) maxK = k
+        }
+      })
+    }
+    const dim = 2 * maxK
+    return dim % 2 === 0 ? dim : dim + 1
+  }, [homeFunction.subFunctions])
+
+  const rawWidth = Math.max(homeFunction.width || requiredDim, requiredDim)
+  const rawHeight = Math.max(homeFunction.height || requiredDim, requiredDim)
+
+  // Ensure width and height are always EVEN integers (minimum 10x10)
+  const width = Math.min(Math.max(rawWidth % 2 === 0 ? rawWidth : rawWidth + 1, 10), 40)
+  const height = Math.min(Math.max(rawHeight % 2 === 0 ? rawHeight : rawHeight + 1, 10), 40)
 
   const TILE_WIDTH = 96
   const TILE_HEIGHT = 48
@@ -766,10 +824,73 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     }
   }
 
+  const handleConfirmRelocate = async (tile: TileCoord) => {
+    if (!relocateBuilding) return
+    const targetBuilding = relocateBuilding
+    if (onCancelRelocate) {
+      onCancelRelocate()
+    }
+    const newOrderSn = relativeCoordToOrderSN(tile.gridX - centerX, tile.gridY - centerY)
+    setIsBuildingSubmitting(true)
+    try {
+      const statusPayload =
+        typeof targetBuilding.status === 'number'
+          ? targetBuilding.status
+          : targetBuilding.status && typeof targetBuilding.status === 'object'
+          ? targetBuilding.status
+          : 2
+
+      await axios.post(
+        `${apiBaseUrl}/api/v1/functions`,
+        {
+          id: targetBuilding.id,
+          pId: targetBuilding.pId || targetBuilding.p_id || homeFunction.id,
+          name: targetBuilding.name,
+          description: targetBuilding.description,
+          type: targetBuilding.type || 'PAGE',
+          orderSn: newOrderSn,
+          status: statusPayload,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      setIsBuildingSubmitting(false)
+      const updatedBuilding = {
+        ...targetBuilding,
+        orderSn: newOrderSn,
+        order_sn: newOrderSn,
+      }
+      setFogState('closing')
+      setTimeout(() => {
+        if (onRelocateComplete) {
+          onRelocateComplete(updatedBuilding)
+        } else if (onRefreshMap) {
+          onRefreshMap()
+        }
+        setFogState('opening')
+      }, 500)
+    } catch (err: any) {
+      console.error('Failed to relocate building:', err)
+      setIsBuildingSubmitting(false)
+      const msg = err.response?.data?.error || '重設位置失敗，請檢查權限與輸入。'
+      alert(msg)
+    }
+  }
+
   // Click tile -> Select tile without panning map or lock placement coordinate
   const handleTileClick = (tile: TileCoord) => {
     if (isMoved) return
     setSelectedTile({ gridX: tile.gridX, gridY: tile.gridY })
+
+    if (relocateBuilding) {
+      if (tile.building && tile.building.id !== relocateBuilding.id) {
+        alert('該座標已有其他建築物，請選擇空地網格！')
+        return
+      }
+      handleConfirmRelocate(tile)
+      return
+    }
 
     if (isPlacementMode) {
       if (tile.building) {
@@ -780,9 +901,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     }
   }
 
-  // Tile hover in Placement Mode
+  // Tile hover in Placement Mode or Relocate Mode
   const handleTileMouseEnter = (tile: TileCoord) => {
-    if (isPlacementMode && !lockedGrid) {
+    if ((isPlacementMode && !lockedGrid) || relocateBuilding) {
       setHoverGrid({ gridX: tile.gridX, gridY: tile.gridY })
     }
   }
@@ -791,6 +912,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   const handleBuildingClick = async (e: React.MouseEvent, building: SubFunction, tile: TileCoord) => {
     e.stopPropagation()
     if (isMoved) return
+
+    if (relocateBuilding) {
+      handleTileClick(tile)
+      return
+    }
+
+    if (isPlacementMode) {
+      handleTileClick(tile)
+      return
+    }
+
     handleTileClick(tile)
     try {
       const response = await axios.get(`${apiBaseUrl}/api/v1/functions?name=${building.name}`, {
@@ -1220,6 +1352,53 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         })()}
       </div>
 
+      {/* Relocate Mode Top HUD Banner */}
+      {relocateBuilding && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 300,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '12px 24px',
+            borderRadius: '20px',
+            background: 'rgba(30, 25, 10, 0.92)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(234, 179, 8, 0.6)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
+            color: '#ffffff',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+          }}
+        >
+          <Hammer className="w-5 h-5 text-amber-400 animate-bounce" />
+          <span>
+            【重設位置模式】請點擊等角網格空地，重新選擇「<strong style={{ color: '#facc15' }}>{relocateBuilding.description || relocateBuilding.name}</strong>」的位置
+          </span>
+          {onCancelRelocate && (
+            <button
+              type="button"
+              onClick={onCancelRelocate}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#e2e8f0',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+              }}
+            >
+              取消重設
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Phase 2 Placement Mode HUD Notification Banner */}
       {isPlacementMode && (
         <div
@@ -1339,7 +1518,6 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
             selectedTile?.gridX === tile.gridX && selectedTile?.gridY === tile.gridY
           const depthIndex = (tile.gridX + tile.gridY) * 10 + tile.gridX
 
-
           // Ground tile sprite column index from Row 0:
           // Col 0: 第 1 張貼圖 - 泥土 (Dirt) (建築物下方及周圍)
           // Col 1: 第 2 張貼圖 - 草地 (Grass) (一般開闊地表)
@@ -1378,6 +1556,32 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                 }}
               />
 
+              {/* Debug order_sn Badge for Target User (f543437b-4ef4-42ec-9cbc-6f998f3eb13a) - 已驗證完成，暫時註解隱藏
+              {isTargetUser && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                    zIndex: depthIndex + 15,
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    border: '1px solid rgba(250, 204, 21, 0.9)',
+                    color: '#facc15',
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    padding: '1px 6px',
+                    borderRadius: '6px',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.7)',
+                  }}
+                >
+                  order_sn: {tileOrderSn}
+                </div>
+              )}
+              */}
+
               {/* Phase 2 Placement Mode Building Sprite Preview (使用精準 PX 裁切繪製) */}
               {isPlacementMode &&
                 ((lockedGrid?.gridX === tile.gridX && lockedGrid?.gridY === tile.gridY) ||
@@ -1407,6 +1611,32 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
                     />
                   </div>
                 )}
+
+              {/* Relocate Mode Building Sprite Cursor Preview (隨滑鼠移動擺放棋子) */}
+              {relocateBuilding && hoverGrid?.gridX === tile.gridX && hoverGrid?.gridY === tile.gridY && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: '0px',
+                    transform: 'translate(-50%, 0)',
+                    pointerEvents: 'none',
+                    zIndex: depthIndex + 25,
+                    opacity: 0.85,
+                    filter: 'drop-shadow(0 0 16px rgba(250, 204, 21, 0.95))',
+                  }}
+                >
+                  <BuildingSpriteButton
+                    mapX={tile.gridX}
+                    mapY={tile.gridY}
+                    sheet_id={relocateBuilding.sheet_id ?? '1'}
+                    spriteCol={relocateBuilding.spriteCol ?? relocateBuilding.sprite_col ?? 6}
+                    spriteRow={relocateBuilding.spriteRow ?? relocateBuilding.sprite_row ?? 0}
+                    buildingName={relocateBuilding.description || relocateBuilding.name}
+                    hasPermission={true}
+                  />
+                </div>
+              )}
 
               {/* Isometric Tile Polygon Selection & Stroke Border */}
               <svg
