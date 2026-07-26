@@ -1427,7 +1427,7 @@ function App() {
 
     const isHomeType = func.type === 'HOME' || func.name === 'Home'
     const showFirst = !isHomeType && func.name && func.name.toLowerCase() !== 'home'
-    const showSecond = isHomeType || func.name === 'User' || func.type === 'SETT' || func.type === 'PAGE' || func.type === 'POST'
+    const hasSecondContent = isHomeType || (func.name === 'User' && !!user) || func.type === 'SETT' || func.type === 'POST'
     const showThird = !isHomeType && func.subFunctions && func.subFunctions.length > 0
 
     return (
@@ -1452,12 +1452,12 @@ function App() {
         )}
 
         {/* Separator between First and Second, or First and Third */}
-        {showFirst && (showSecond || showThird) && (
+        {showFirst && (hasSecondContent || showThird) && (
           <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '0' }} />
         )}
 
         {/* Second Block: Function content */}
-        {showSecond && (
+        {hasSecondContent && (
           <div style={{ padding: '8px 0' }}>
             {func.name === 'User' && user && (
               <div className="profile-header-card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
@@ -1511,7 +1511,7 @@ function App() {
         )}
 
         {/* Separator between Second and Third */}
-        {showSecond && showThird && (
+        {hasSecondContent && showThird && (
           <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '0' }} />
         )}
 
